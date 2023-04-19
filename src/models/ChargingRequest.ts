@@ -1,18 +1,17 @@
-import mongoose from 'mongoose'
+import mongoose from "mongoose";
 const chargingRequestSchema = new mongoose.Schema({
-    requestId: String,
+    requestId: { type: String, unique: true },
     userId: String,
     requestTime: Date,
     requestMode: String,
     requestVolume: Number,
 });
 
-chargingRequestSchema.virtual("queue", {
-    ref: "ChargingQueue",
-    localField: "requestId",
-    foreignField: "queueNumber",
-    justOne: true,
-});
+// chargingRequestSchema.virtual("queue", {
+//     ref: "ChargingQueue",
+//     localField: "requestId",
+//     foreignField: "queueNumber",
+//     justOne: true,
+// });
 
-
-export default mongoose.model('ChargingRequests', chargingRequestSchema)
+export default mongoose.model("ChargingRequests", chargingRequestSchema);

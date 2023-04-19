@@ -1,13 +1,21 @@
-import mongoose from 'mongoose'
+import mongoose from "mongoose";
 const chargingQueueSchema = new mongoose.Schema({
-    queueNumber: Number,
+    userId: Number,
+    queueNumber: String,
     requestType: String,
     requestTime: Date,
+    chargingAmount: Number,
 });
-chargingQueueSchema.virtual("chargingPile", {
-    ref: "ChargingPile",
-    localField: "queueNumber",
-    foreignField: "queueLength",
+chargingQueueSchema.virtual("user", {
+    ref: "Users",
+    localField: "userId",
+    foreignField: "userId",
     justOne: true,
 });
-export default mongoose.model('ChargingQueues', chargingQueueSchema)
+// chargingQueueSchema.virtual("chargingPile", {
+//     ref: "ChargingPile",
+//     localField: "queueNumber",
+//     foreignField: "queueLength",
+//     justOne: true,
+// });
+export default mongoose.model("ChargingQueues", chargingQueueSchema);

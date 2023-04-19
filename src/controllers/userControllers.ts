@@ -1,7 +1,7 @@
 // const User = require("../models/userModel");
 // const { getUser } = require("../responses");
 import User from "../models/User.js";
-import responses , {ResponseData, responseParams} from "../responses.js";
+import responses, { ResponseData, responseParams } from "../responses.js";
 
 export const getAllUsers = async (req, res) => {
     const users = await User.find({});

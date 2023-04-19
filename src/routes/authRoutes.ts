@@ -9,10 +9,10 @@
 import {
     login,
     register,
-    checkAuth,
-    setPassword,
-} from "../controllers/authControllers.js";
-import { authToken } from "../authenticate/authenticateToken.js";
+    // checkAuth,
+    // setPassword,
+} from "../controllers/authController.js";
+import { isUser } from "../authenticate/authenticateToken.js";
 import { Router } from "express";
 
 const router = Router();
@@ -20,11 +20,11 @@ const router = Router();
 router.post("/login", login)
 router.post("/register", register)
 
-router.use("/auth", authToken);
-router.post("/auth", checkAuth)
+router.use("/auth", isUser);
+// router.post("/auth", checkAuth)
 
-router.use("/reset-password", authToken);
-router.post("/reset-password", setPassword);
+router.use("/reset-password", isUser);
+// router.post("/reset-password", setPassword);
 
 export default router;
 

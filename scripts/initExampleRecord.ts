@@ -31,7 +31,7 @@ dotenv.config();
     // 以下同理处理其他模型
     await ChargingQueue.findOne({});
     await ChargingQueue.create({
-        queueNumber: 3,
+        queueNumber: "F3",
         requestType: "urgent",
         requestTime: new Date(),
     });

@@ -1,4 +1,5 @@
-======= ChargingPile.ts =======
+## ======= ChargingPile.ts =======
+
 import mongoose from 'mongoose'
 const chargingPileSchema = new mongoose.Schema({
 chargingPileId: String,
@@ -16,7 +17,8 @@ chargingPileSchema.virtual("chargingRecords", {
 
 export default mongoose.model('ChargingPiles', chargingPileSchema)
 
-======= ChargingQueue.ts =======
+ ## ======= ChargingQueue.ts =======
+
 import mongoose from 'mongoose'
 const chargingQueueSchema = new mongoose.Schema({
     queueNumber: Number,
@@ -31,7 +33,8 @@ chargingQueueSchema.virtual("chargingPile", {
 });
 export default mongoose.model('ChargingQueues', chargingQueueSchema)
 
-======= ChargingRecord.ts =======
+ ## ======= ChargingRecord.ts =======
+
 import mongoose from 'mongoose'
 const chargingRecordSchema = new mongoose.Schema({
 recordId: String,
@@ -52,7 +55,8 @@ chargingRecordSchema.virtual("user", {
 });
 export default mongoose.model('ChargingRecords', chargingRecordSchema)
 
-======= ChargingRequest.ts =======
+ ## ======= ChargingRequest.ts =======
+
 import mongoose from 'mongoose'
 const chargingRequestSchema = new mongoose.Schema({
     requestId: String,
@@ -73,7 +77,8 @@ chargingRequestSchema.virtual("queue", {
 export default mongoose.model('ChargingRequests', chargingRequestSchema)
 
 
-======= ChargingStats.ts =======
+ ## ======= ChargingStats.ts =======
+
 import mongoose from 'mongoose'
 const chargingStatsSchema = new mongoose.Schema({
     statsId: String,
@@ -96,7 +101,8 @@ chargingStatsSchema.virtual("chargingPile", {
 export default mongoose.model('ChargingStats', chargingStatsSchema)
 
 
-======= FaultRecord.ts =======
+ ## ======= FaultRecord.ts =======
+
 import mongoose from 'mongoose'
 const faultRecordSchema = new mongoose.Schema({
     recordId: String,
@@ -112,7 +118,8 @@ faultRecordSchema.virtual("chargingPile", {
 export default mongoose.model('FaultRecords', faultRecordSchema)
 
 
-======= User.ts =======
+ ## ======= User.ts =======
+
 // const mongoose = require("mongoose");
 import mongoose from "mongoose";
 
@@ -141,5 +148,4 @@ userSchema.virtual("requests", {
 
 
 export default mongoose.model("Users", userSchema);
-
 

@@ -1,7 +1,7 @@
 /*
  * @Date: 2022-09-19 20:56:26
  * @LastEditors: Azus
- * @LastEditTime: 2023-04-15 11:07:02
+ * @LastEditTime: 2023-04-18 17:30:45
  * @FilePath: /ChargePileScheduler/src/index.ts
  * @Description: set up express server, connect to database, and listen to socket port
  */
@@ -20,54 +20,54 @@
 
 import fs from "fs";
 import app from "./app.js";
-import { createServer } from "https";
+import { createServer as createHttpsServer } from "https";
+import { createServer as createHttpServer } from "http";
 import { Server, Socket } from "socket.io";
-import  connect_database  from "./database.js";
+import connect_database from "./database.js";
 import dotenv from "dotenv";
 
 dotenv.config();
 const USE_SOCKET: boolean = Boolean(process.env.USE_SOCKET as string);
 connect_database(process.env.MONGO_URL as string);
+let server;
+if (process.env.HTTPS === "true") {
+    var privateKey = fs.readFileSync("private.pem");
+    var certificate = fs.readFileSync("origin_ca_rsa_root.pem");
+    server = createHttpsServer(
+        {
+            key: privateKey,
+            cert: certificate,
+        },
+        app
+    );
+} else {
+    server = createHttpServer(app);
+}
 
-
-var privateKey = fs.readFileSync(
-    "private.pem"
-);
-var certificate = fs.readFileSync(
-    "origin_ca_rsa_root.pem"
-);
-const httpServer = createServer(
-    {
-        key: privateKey,
-        cert: certificate,
-    },
-    app
-);
-
-//* init http server to bind socket.io to 
+//* init http server to bind socket.io to
 // const server = app.listen(process.env.PORT, () => {
 //     console.log(`server running at ${process.env.PORT}`);
 // });
 
-if (USE_SOCKET) {
-    // listen socket port
-    const onlineUser = new Map();
-    const io = new Server(httpServer, {
-        cors: {
-            origin: "*", // allow all origins
-            // methods: ["GET", "POST"],
-        },
-    });
+// if (USE_SOCKET) {
+//     // listen socket port
+//     const onlineUser = new Map();
+//     const io = new Server(server, {
+//         cors: {
+//             origin: "*", // allow all origins
+//             // methods: ["GET", "POST"],
+//         },
+//     });
 
-    io.on("connection", (socket: Socket) => {
-        // say hello to client
-        socket.emit("hello", "hello from server");
+//     io.on("connection", (socket: Socket) => {
+//         // say hello to client
+//         socket.emit("hello", "hello from server");
 
-        socket.on("disconnect", () => {
-            onlineUser.delete(socket.id);
-        });
-    });
-}
-httpServer.listen(process.env.PORT, () => {
+//         socket.on("disconnect", () => {
+//             onlineUser.delete(socket.id);
+//         });
+//     });
+// }
+server.listen(Number(process.env.PORT), () => {
     console.log(`server running at ${process.env.PORT}`);
 });

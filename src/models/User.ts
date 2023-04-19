@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
     userId: {
-        type: String,
+        type: Number,
         unique: true,
     },
     username: {
@@ -16,6 +16,26 @@ const userSchema = new mongoose.Schema({
         required: true,
     },
     phoneNumber: String,
+    isAdmin: {
+        type: Boolean,
+        default: false,
+    },
+});
+
+userSchema.pre("save", function (next) {
+    const doc = this;
+    // Find the highest userId in the collection
+    // and increment it by 1 for the new user
+    const User = mongoose.model("User", userSchema);
+    User.find()
+        .sort({ userId: -1 })
+        .limit(1)
+        .exec()
+        .then((result) => {
+            doc.userId = result.length > 0 ? result[0].userId + 1 : 1;
+            next(); // Call the next middleware
+        })
+        .catch((err) => next(err));
 });
 
 userSchema.virtual("requests", {
