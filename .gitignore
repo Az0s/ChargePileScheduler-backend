@@ -6,3 +6,4 @@ dist
 .devNote.md
 coverage
 test.rest
+.DS_Store
