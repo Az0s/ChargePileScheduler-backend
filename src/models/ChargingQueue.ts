@@ -1,11 +1,12 @@
 import mongoose from "mongoose";
 const chargingQueueSchema = new mongoose.Schema({
     userId: Number,
-    queueNumber: String,
+    queueNumber: Number,
     requestType: String,
     requestTime: Date,
     chargingAmount: Number,
 });
+
 chargingQueueSchema.virtual("user", {
     ref: "Users",
     localField: "userId",

@@ -1,7 +1,7 @@
 /*
  * @Date: 2022-09-20 16:21:26
  * @LastEditors: Azus
- * @LastEditTime: 2023-04-18 17:19:31
+ * @LastEditTime: 2023-04-23 16:20:04
  * @FilePath: /ChargePileScheduler/src/app.ts
  * @Description: configure express app
  */
@@ -29,7 +29,7 @@ app.get("/api/hello", (req: express.Request, res) => {
     res.status(200).send("hello");
 });
 
-app.use("/auth", authRouter);
+app.use("/", authRouter);
 
 // require user auth
 app.use("/queue", isUser);
@@ -46,10 +46,7 @@ app.use("/admin", adminRouter);
 // app.use("/user", isUser);
 // app.use("/user", userRouter);
 
-app.get("/", (_, res) => {
-    console.log("/");
-    res.status(200).send("hw");
-});
+
 
 // app.use("/api/messages/", )
 

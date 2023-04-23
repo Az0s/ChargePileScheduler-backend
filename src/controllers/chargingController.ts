@@ -1,10 +1,10 @@
-import users from "../models/User.js";
-import chargingPiles from "../models/ChargingPile.js";
+// import users from "../models/User.js";
+// import chargingPiles from "../models/ChargingPile.js";
 import chargingQueue from "../models/ChargingQueue.js";
-import chargingRecord from "../models/ChargingRecord.js";
-import chargingRequest from "../models/ChargingRequest.js";
-import chargingStats from "../models/ChargingStats.js";
-import faultRecord from "../models/FaultRecord.js";
+// import chargingRecord from "../models/ChargingRecord.js";
+// import chargingRequest from "../models/ChargingRequest.js";
+// import chargingStats from "../models/ChargingStats.js";
+// import faultRecord from "../models/FaultRecord.js";
 import { ResponseData, IResponse } from "../IResponse.js";
 import dispatch from "../utils/dispatch.js";
 import { getDate, getTimestamp } from "../utils/timer.js";
@@ -30,12 +30,17 @@ export const requestCharging = async (req, res: IResponse) => {
     // let session = null;
     let queueNumber = null;
     try {
+        // MAX_QUEUE_REACHED
         if ((await chargingQueue.countDocuments()) >= 6) {
             throw new Error("MAX_QUEUE_REACHED");
         }
-        queueNumber = `${chargingMode}${await chargingQueue.countDocuments({
+        // 验证用户是否已经在排队
+        else if (await chargingQueue.findOne({ userId: userId })) {
+            throw new Error("USER_ALREADY_IN_QUEUE");
+        }
+        queueNumber = await chargingQueue.countDocuments({
             requestType: chargingMode,
-        })}`;
+        }) + 1;
         await chargingQueue.create({
             userId,
             queueNumber,
@@ -81,7 +86,7 @@ export const requestCharging = async (req, res: IResponse) => {
         console.error(error);
         res.status(400).json({
             code: -1,
-            message: "排队失败:" + error.message,
+            message: "排队失败: " + error.message,
         } as ResponseData);
         return;
         // throw error;
@@ -94,7 +99,7 @@ export const requestCharging = async (req, res: IResponse) => {
     res.json({
         code: 0,
         message: "请求成功",
-        data: { queueNumber },
+        data: { queueId: chargingMode + queueNumber },
     } as ResponseData);
     // } catch (error) {
     //     res.status(500).json({
@@ -136,5 +141,23 @@ export const submitChargingResult = async (req, res: IResponse) => {
 
 export const cancelCharging = async (req, res: IResponse) => {
     // 省略取消逻辑
-    res.json({ code: 0, message: "取消成功" });
+    // 如果在排队中，删除排队信息
+    const queue = await chargingQueue.findOne({ userId: req.userId });
+    if (queue) {
+        // delete
+        chargingQueue
+            .deleteOne({ userId: req.userId })
+            .then(async () => {
+                // console.log("delete success");
+                await dispatch();
+                res.json({ code: 0, message: "取消成功" });
+            })
+            .catch((err) => {
+                // console.log(err);
+                res.status(500).json({ code: -1, message: "服务器错误 err while deleting queue" });
+            });
+    } else {
+        res.status(400).json({ code: -1, message: "用户不在排队中" });
+    }
+    // TODO: 如果在充电中，删除充电信息, 生成充电记录
 };

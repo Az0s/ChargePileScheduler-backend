@@ -26,5 +26,10 @@ router.use("/auth", isUser);
 router.use("/reset-password", isUser);
 // router.post("/reset-password", setPassword);
 
+router.get("/", (_, res) => {
+    console.log("/");
+    res.status(200).send("hw");
+});
+
 export default router;
 

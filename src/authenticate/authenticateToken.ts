@@ -4,48 +4,58 @@
 // const jwt = require('jsonwebtoken');
 // const responses = require('../responses');
 import jwt from "jsonwebtoken";
-import responses from "../responses.js";
+// import responses from "../responses.js";
 import User from "../models/User.js";
+import { IResponse } from "../IResponse.js";
 
-
-export const isUser = async (req, res, next) => {
+export const isUser = async (req, res: IResponse, next) => {
     try {
         const userToken = getUserToken(req);
-        await jwt.verify(userToken, process.env.ACCESS_TOKEN, (err, user) => {
+        await jwt.verify(userToken, process.env.ACCESS_TOKEN, (err, username) => {
             if (err) {
-                res.status(401).send(responses.unauthorized);
+                res.status(401).send({ code: -1, message: "unauthorized token" });
             } else {
-                req.userId = user.userId;
-                next();
+                // confirm user exists in db
+                User.findOne({ username }, (err, user) => {
+                    if (err) {
+                        res.status(401).send({ code: -1, message: "user don't exist" });
+                    } else {
+                        req.userId = user.userId;
+                        next();
+                    }
+                });
             }
         });
     } catch (error) {
-        res.status(401).send(responses.unauthorized);
+        res.status(401).send({ code: -1, message: "unauthorized token" });
     }
 };
 export const isAdmin = async (req, res, next) => {
     try {
         const userToken = getUserToken(req);
-        await jwt.verify(userToken, process.env.ACCESS_TOKEN, async (err, user) => {
-            if (err) {
-                res.status(401).send(responses.unauthorized);
+        await jwt.verify(
+            userToken,
+            process.env.ACCESS_TOKEN,
+            async (err, username) => {
+                if (err) {
+                    res.status(401).send({ code: -1, message: "unauthorized token" });
+                }
+                // else {
+                //     req.user = user.username;
+                //     next();
+                // }
+                const user =  await User.findOne({ username })
+                const isAdmin = user.isAdmin;
+                if (isAdmin) {
+                    req.user = user.userId;
+                    next();
+                } else {
+                    res.status(401).send({ code: -1, message: "not admin" });
+                }
             }
-            // else {
-            //     req.user = user.username;
-            //     next();
-            // }
-            const { username } = user;
-            const isAdmin = await User.findOne({ username }).select('isAdmin');
-            if (isAdmin) {
-                req.user = user.username;
-                next();
-            }
-            else {
-                res.status(401).send(responses.unauthorized);
-            }
-        });
+        );
     } catch (error) {
-        res.status(401).send(responses.unauthorized);
+        res.status(401).send({ code: -1, message: "unauthorized token" });
     }
 };
 
@@ -54,10 +64,8 @@ const getUserToken = (req) => {
     if (authHeader) {
         const token = authHeader.split(" ")[1];
         return token;
-    }
-    else{
+    } else {
         // raise error
         throw new Error("no token found");
     }
 };
-

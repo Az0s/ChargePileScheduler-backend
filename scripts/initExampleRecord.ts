@@ -22,7 +22,7 @@ dotenv.config();
 
     // 插入样例数据
     await ChargingPile.create({
-        chargingPileId: "pile001",
+        chargingPileId: "1",
         chargingPower: 10,
         chargingType: "Fast",
         queueLength: 3,
@@ -31,16 +31,29 @@ dotenv.config();
     // 以下同理处理其他模型
     await ChargingQueue.findOne({});
     await ChargingQueue.create({
-        queueNumber: "F3",
-        requestType: "urgent",
+        userId: "1",
+        queueNumber: "1",
+        requestType: "F",
+        requestTime: new Date(),
+    });
+    await ChargingQueue.create({
+        userId: "2",
+        queueNumber: "2",
+        requestType: "F",
+        requestTime: new Date(),
+    });
+    await ChargingQueue.create({
+        userId: "3",
+        queueNumber: "3",
+        requestType: "F",
         requestTime: new Date(),
     });
 
     await ChargingRecord.findOne({});
     await ChargingRecord.create({
-        recordId: "record001",
-        userId: "user001",
-        chargingPileId: "pile001",
+        recordId: "1",
+        userId: "1",
+        chargingPileId: "1",
         startTime: new Date(),
         endTime: new Date(),
         volume: 10,
@@ -51,18 +64,18 @@ dotenv.config();
 
     await ChargingRequest.findOne({});
     await ChargingRequest.create({
-        requestId: "request001",
-        userId: "user001",
+        requestId: "1",
+        userId: "1",
         requestTime: new Date(),
-        requestMode: "normal",
+        requestMode: "F",
         requestVolume: 20,
     });
 
     await ChargingStats.findOne({});
     await ChargingStats.create({
-        statsId: "stats001",
+        statsId: "1",
         time: new Date(),
-        chargingPileId: "pile001",
+        chargingPileId: "1",
         chargingTimes: 2,
         chargingDuration: 60,
         chargingVolume: 8,
@@ -73,18 +86,33 @@ dotenv.config();
 
     await FaultRecord.findOne({});
     await FaultRecord.create({
-        recordId: "fault001",
-        chargingPileId: "pile001",
+        recordId: "1",
+        chargingPileId: "1",
         faultTime: new Date(),
         solveTime: new Date(),
     });
-
+    // mongoose 里面 new... save...的写法跟create有什么区别
     await User.findOne({});
     await User.create({
-        userId: "user001",
-        username: "testuser",
-        password: "123456",
+        userId: "0",
+        username: "test",
+        password: "test",
         phoneNumber: "12345678901",
+        isAdmin: true
+    });
+    await User.create({
+        userId: "0",
+        username: "test1",
+        password: "test1",
+        phoneNumber: "12345678901",
+        isAdmin: true
+    });
+    await User.create({
+        userId: "0",
+        username: "test2",
+        password: "test2",
+        phoneNumber: "12345678901",
+        isAdmin: true
     });
 
     // 断开连接

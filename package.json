@@ -23,6 +23,8 @@
         "docGen": "ts-node ./scripts/docGen.ts",
         "exportSchema": "ts-node ./scripts/exportSchema.ts",
         "initDB": "ts-node ./scripts/initExampleRecord.ts",
+        "rmDB": "ts-node ./scripts/rmDB.ts",
+        "genTestJWT": "ts-node ./scripts/genTestJWT.ts",
         "build": "npx tsc",
         "start": "ts-node dist/index.js",
         "dev": "concurrently \"npx tsc --watch\" \"nodemon -q dist/index.js\"",
