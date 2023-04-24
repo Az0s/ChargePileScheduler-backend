@@ -2,17 +2,18 @@
 // import chargingPiles from "../models/ChargingPile.js";
 import chargingQueue from "../models/ChargingQueue.js";
 // import chargingRecord from "../models/ChargingRecord.js";
-// import chargingRequest from "../models/ChargingRequest.js";
+import chargingRequest from "../models/ChargingRequest.js";
 // import chargingStats from "../models/ChargingStats.js";
 // import faultRecord from "../models/FaultRecord.js";
 import { ResponseData, IResponse } from "../IResponse.js";
 import dispatch from "../utils/dispatch.js";
 import { getDate, getTimestamp } from "../utils/timer.js";
+import { v4 as uuidv4 } from "uuid";
 
 // chargingController.js
 export const requestCharging = async (req, res: IResponse) => {
     const { userId } = req;
-    const { chargingMode, chargingAmount } = req.body;
+    const { chargingMode, chargingAmount, batteryAmount } = req.body;
     // 验证数据
     if (!chargingMode || !chargingAmount) {
         res.status(400).json({
@@ -30,23 +31,46 @@ export const requestCharging = async (req, res: IResponse) => {
     // let session = null;
     let queueNumber = null;
     try {
-        // MAX_QUEUE_REACHED
-        if ((await chargingQueue.countDocuments()) >= 6) {
+        // (!MAX_QUEUE_REACHED) && (!USER_ALREADY_IN_QUEUE)
+        const [queueCount, userInQueue] = await Promise.all([
+            chargingQueue.countDocuments(),
+            chargingQueue.findOne({ userId: userId }),
+        ]);
+        if (queueCount >= 6) {
             throw new Error("MAX_QUEUE_REACHED");
-        }
-        // 验证用户是否已经在排队
-        else if (await chargingQueue.findOne({ userId: userId })) {
+        } else if (userInQueue) {
             throw new Error("USER_ALREADY_IN_QUEUE");
         }
-        queueNumber = await chargingQueue.countDocuments({
-            requestType: chargingMode,
-        }) + 1;
-        await chargingQueue.create({
+        queueNumber =
+            (await chargingQueue.countDocuments({
+                requestType: chargingMode,
+            })) + 1;
+        const requestId = uuidv4();
+        const pQueue = chargingQueue.create({
             userId,
             queueNumber,
             requestType: chargingMode,
             requestTime: getDate(),
+            requestId,
             chargingAmount,
+        });
+        const pRequest = chargingRequest.create({
+            userId,
+            requestId,
+            requestTime: getDate(),
+            requestMode: chargingMode,
+            requestVolume: chargingAmount,
+            batteryAmount,
+        });
+        Promise.all([pQueue, pRequest]).then(() => {
+            dispatch().then(() => {
+                res.json({
+                    code: 0,
+                    message: "请求成功",
+                    data: { queueId: chargingMode + queueNumber },
+                } as ResponseData);
+                return;
+            });
         });
         /* //* transaction not used in this version. need to set up replica mongodb.
         // Start a new transaction
@@ -78,7 +102,6 @@ export const requestCharging = async (req, res: IResponse) => {
             },
             { session }
         );
-
         // Commit the transaction
         await session.commitTransaction();
         */
@@ -89,24 +112,10 @@ export const requestCharging = async (req, res: IResponse) => {
             message: "排队失败: " + error.message,
         } as ResponseData);
         return;
-        // throw error;
     } finally {
         // End the session
         // session.endSession();
     }
-
-    await dispatch();
-    res.json({
-        code: 0,
-        message: "请求成功",
-        data: { queueId: chargingMode + queueNumber },
-    } as ResponseData);
-    // } catch (error) {
-    //     res.status(500).json({
-    //         code: -1,
-    //         message: "服务器错误",
-    //     } as ResponseData);
-    // }
 };
 
 export const submitChargingResult = async (req, res: IResponse) => {
@@ -154,7 +163,10 @@ export const cancelCharging = async (req, res: IResponse) => {
             })
             .catch((err) => {
                 // console.log(err);
-                res.status(500).json({ code: -1, message: "服务器错误 err while deleting queue" });
+                res.status(500).json({
+                    code: -1,
+                    message: "服务器错误 err while deleting queue",
+                });
             });
     } else {
         res.status(400).json({ code: -1, message: "用户不在排队中" });

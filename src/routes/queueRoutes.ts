@@ -6,7 +6,7 @@ import {
 
 const router: Router = express.Router();
 
-router.get("/", getQueueInfo);
-router.post("/change-request", changeChargingRequest);
+router.get("/info", getQueueInfo);
+router.post("/change", changeChargingRequest);
 
 export default router;
