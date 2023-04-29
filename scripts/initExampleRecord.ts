@@ -69,7 +69,7 @@ dotenv.config();
             queueNumber: "1",
             requestId: "a14bc086-888f-49ed-9e15-a86165980951",
             requestType: "F",
-            chargingAmount: 100,
+            requestVolume: 100,
             requestTime: new Date(),
         }),
         ChargingQueue.create({
@@ -77,7 +77,7 @@ dotenv.config();
             requestId: "9ad2e227-001b-47e9-a783-c2d7740bc905",
             queueNumber: "2",
             requestType: "F",
-            chargingAmount: 80,
+            requestVolume: 80,
 
             requestTime: new Date(),
         }),
@@ -86,7 +86,7 @@ dotenv.config();
             queueNumber: "3",
             requestId: "1fb2e11b-2e1b-4178-9ef9-d7ab28d9c4de",
             requestType: "F",
-            chargingAmount: 90,
+            requestVolume: 90,
             requestTime: new Date(),
         }),
     ]);

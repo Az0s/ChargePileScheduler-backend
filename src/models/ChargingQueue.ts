@@ -5,7 +5,7 @@ export interface IChargingQueue extends mongoose.Document {
     queueNumber: number;
     requestType: string;
     requestTime: Date;
-    chargingAmount: number;
+    requestVolume: number;
 }
 const chargingQueueSchema = new mongoose.Schema({
     userId: {
@@ -32,7 +32,7 @@ const chargingQueueSchema = new mongoose.Schema({
         type: Date,
         required: true,
     },
-    chargingAmount: {
+    requestVolume: {
         type: Number,
         required: true,
     },

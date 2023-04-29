@@ -34,14 +34,27 @@ export const requestCharging = async (req, res: IResponse) => {
     let queueNumber = null;
     try {
         // (!MAX_QUEUE_REACHED) && (!USER_ALREADY_IN_QUEUE)
-        const [queueCount, userInQueue] = await Promise.all([
+        const [queueCount, userInQueue, userRequests] = await Promise.all([
             chargingQueue.countDocuments(),
             chargingQueue.findOne({ userId: userId }),
+            chargingRequest
+            .find({
+                userId: userId,
+                status: {
+                    $nin: [
+                        ChargingRequestStatus.canceled,
+                        ChargingRequestStatus.finished,
+                    ],
+                },
+            })
         ]);
         if (queueCount >= 6) {
             throw new Error("MAX_QUEUE_REACHED");
         } else if (userInQueue) {
             throw new Error("USER_ALREADY_IN_QUEUE");
+        } else if (userRequests.length != 0) {  
+            // console.error("USER_ALREADY_HAS_ACTIVE_REQUEST", userRequests);
+            throw new Error("USER_ALREADY_HAS_ACTIVE_REQUEST");
         }
         queueNumber =
             (await chargingQueue.countDocuments({
@@ -54,7 +67,7 @@ export const requestCharging = async (req, res: IResponse) => {
             requestType: chargingMode,
             requestTime: getDate(),
             requestId,
-            chargingAmount,
+            requestVolume: chargingAmount,
         });
         const pRequest = chargingRequest.create({
             userId,

@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-04-14 20:36:00
  * @LastEditors: Azus
- * @LastEditTime: 2023-04-29 09:38:08
+ * @LastEditTime: 2023-04-29 11:11:58
  * @FilePath: /ChargePileScheduler/src/utils/dispatch.ts
  * @Description: dispatch charging queue
  * 1. get charging queue
@@ -10,12 +10,13 @@
  */
 
 // import users from "../models/User.js";
-import { ObjectId } from "mongoose";
+import { ObjectId, UpdateQuery } from "mongoose";
 import chargingPiles from "../models/ChargingPile.js";
 import chargingQueue from "../models/ChargingQueue.js";
 import chargingRecord from "../models/ChargingRecord.js";
 import chargingRequest, {
     ChargingRequestStatus,
+    IChargingRequest,
 } from "../models/ChargingRequest.js";
 // import chargingRecord from "../models/ChargingRecord.js";
 // import chargingRequest from "../models/ChargingRequest.js";
@@ -29,7 +30,7 @@ type QueueItem = {
     queueNumber: number;
     requestType: string;
     requestTime: Date;
-    chargingAmount: number;
+    requestVolume: number;
 };
 type IncrementalQueue = {
     TQueue: QueueItem[];
@@ -45,7 +46,7 @@ type AvailablePile = {
     chargingPilePower: number;
     chargingPileType: string;
     maxQueue: number;
-    queue: QueueItem[];
+    queue: IChargingRequest[];
 };
 /**
  * @requirement: accomplish time = (waitTime+chargeTime) (waitTime = sum of all the chargeTime in pile.queue) chargeTime=chargingAmount/chargingPilePower)
@@ -55,10 +56,10 @@ type AvailablePile = {
  */
 const getAccomplishTime = (pile: AvailablePile, user: QueueItem): number => {
     const waitTime = pile.queue.reduce(
-        (total, item) => total + item.chargingAmount / pile.chargingPilePower,
+        (total, item) => total + item.requestVolume / pile.chargingPilePower,
         0
     );
-    const chargeTime = user.chargingAmount / pile.chargingPilePower;
+    const chargeTime = user.requestVolume / pile.chargingPilePower;
     const accomplishTime = waitTime + chargeTime;
     return accomplishTime;
 };
@@ -112,21 +113,26 @@ const dispatchUser = async (
         );
         const { chargingPileId } = availablePiles[minAccomplishTimeIndex];
         // must await to ensure queue is sorted
-        const ps = [
+        const ps:[Promise<any>, Promise<any>, Promise<IChargingRequest>] = [
             chargingPiles
                 .updateOne(
                     { chargingPileId },
                     { $push: { queue: { requestId: userQueueItem.requestId } } }
                 )
                 .exec(),
-            chargingRequest.updateOne(
-                { requestId: userQueueItem.requestId },
-                { $set: { status: ChargingRequestStatus.dispatched } }
-            ),
+            chargingRequest
+                .updateOne(
+                    { requestId: userQueueItem.requestId },
+                    { $set: { status: ChargingRequestStatus.dispatched } }
+                )
+                .exec(),
+            chargingRequest
+                .findOne({ requestId: userQueueItem.requestId })
+                .exec(),
         ];
 
         dispatchedUser.push(userQueueItem.userId);
-        availablePiles[minAccomplishTimeIndex].queue.push(userQueueItem);
+        // availablePiles[minAccomplishTimeIndex].queue.push(prequest);
         if (
             availablePiles[minAccomplishTimeIndex].queue.length >=
             availablePiles[minAccomplishTimeIndex].maxQueue
@@ -134,7 +140,8 @@ const dispatchUser = async (
             availablePiles.splice(minAccomplishTimeIndex, 1);
         }
         userQueue.shift();
-        await Promise.all(ps);
+        const [, , userRequest] = await Promise.all(ps);
+        availablePiles[minAccomplishTimeIndex].queue.push(userRequest);
     }
     return dispatchedUser;
 };
@@ -143,6 +150,7 @@ const getAvailablePiles = async (type: String): Promise<AvailablePile[]> => {
     var availablePiles: AvailablePile[] = [];
     const piles = await chargingPiles.find({
         chargingType: type,
+        status:true
     });
     for (let pile of piles) {
         if (pile.queue.length < pile.maxQueue && pile.status) {
@@ -152,22 +160,26 @@ const getAvailablePiles = async (type: String): Promise<AvailablePile[]> => {
                 chargingPileType: pile.chargingType,
                 maxQueue: pile.maxQueue,
                 queue: await Promise.all(
-                    pile.queue.map(async (requestId): Promise<QueueItem> => {
-                        try {
-                            const queueItem = await chargingQueue
-                                .findOne({
-                                    requestId: requestId.requestId,
-                                })
-                                .exec();
-                            if (!queueItem) {
-                                throw new Error(`queueItem not found for the specific requestId: ${requestId}`);
+                    pile.queue.map(
+                        async (requestId): Promise<IChargingRequest> => {
+                            try {
+                                const request = await chargingRequest
+                                    .findOne({
+                                        requestId: requestId.requestId,
+                                    })
+                                    .exec();
+                                if (!request) {
+                                    throw new Error(
+                                        `request not found for the specific requestId: ${requestId}`
+                                    );
+                                }
+                                return request;
+                            } catch (err) {
+                                console.error(err);
+                                throw err;
                             }
-                            return queueItem;
-                        } catch (err) {
-                            console.error(err);
-                            throw err;
                         }
-                    })
+                    )
                 ),
             };
             availablePiles.push(availableFastPile);
