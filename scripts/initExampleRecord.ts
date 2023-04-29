@@ -2,7 +2,9 @@ import mongoose from "mongoose";
 import ChargingPile from "../src/models/ChargingPile";
 import ChargingQueue from "../src/models/ChargingQueue";
 import ChargingRecord from "../src/models/ChargingRecord";
-import ChargingRequest from "../src/models/ChargingRequest";
+import ChargingRequest, {
+    ChargingRequestStatus,
+} from "../src/models/ChargingRequest";
 import ChargingStats from "../src/models/ChargingStats";
 import FaultRecord from "../src/models/FaultRecord";
 import User from "../src/models/User";
@@ -72,7 +74,7 @@ dotenv.config();
         }),
         ChargingQueue.create({
             userId: "2",
-            requestId: "9ad2e227-001b-47e9-a783-c2d7740bc905", 
+            requestId: "9ad2e227-001b-47e9-a783-c2d7740bc905",
             queueNumber: "2",
             requestType: "F",
             chargingAmount: 80,
@@ -110,6 +112,7 @@ dotenv.config();
         requestMode: "F",
         requestVolume: 90,
         batteryAmount: 100.0,
+        status: ChargingRequestStatus.pending,
     });
     await ChargingRequest.create({
         requestId: "9ad2e227-001b-47e9-a783-c2d7740bc905",
@@ -118,6 +121,7 @@ dotenv.config();
         requestMode: "F",
         requestVolume: 90,
         batteryAmount: 100.0,
+        status: ChargingRequestStatus.pending,
     });
     await ChargingRequest.create({
         requestId: "1fb2e11b-2e1b-4178-9ef9-d7ab28d9c4de",
@@ -126,6 +130,7 @@ dotenv.config();
         requestMode: "F",
         requestVolume: 90,
         batteryAmount: 100.0,
+        status: ChargingRequestStatus.pending,
     });
 
     await ChargingStats.findOne({});

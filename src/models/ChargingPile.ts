@@ -1,21 +1,45 @@
 import mongoose from "mongoose";
+export interface IChargingPile extends mongoose.Document {
+    chargingPileId: string;
+    chargingPower: number;
+    chargingType: string;
+    maxQueue: number;
+    queue: {
+        requestId: string;
+    }[];
+    status: boolean;
+}
+
+
 const chargingPileSchema = new mongoose.Schema({
-    chargingPileId: String, // should be ABCDE
-    chargingPower: Number,
-    chargingType: String,
-    maxQueue: Number,
+    chargingPileId: {
+        type: String,
+        required: true,
+    }, // should be ABCDE
+    chargingPower: {
+        type: Number,
+        required: true,
+    },
+    chargingType: {
+        type: String, 
+        required: true,
+    },
+    maxQueue: {
+        type: Number,
+        required: true,
+    },
     queue: [
         {
-            requestId: String,
+            requestId: {
+                type: String,
+                ref: "ChargingRequest",
+            },
         },
     ],
     status: Boolean,
 });
 
-// chargingPileSchema.virtual("chargingRecords", {
-//     ref: "ChargingRecord",
-//     localField: "chargingPileId",
-//     foreignField: "chargingPileId",
-// });
-
-export default mongoose.model("ChargingPiles", chargingPileSchema);
+export default mongoose.model<IChargingPile>(
+    "ChargingPiles",
+    chargingPileSchema
+);

@@ -1,8 +1,10 @@
 // import users from "../models/User.js";
-// import chargingPiles from "../models/ChargingPile.js";
+import chargingPiles from "../models/ChargingPile.js";
 import chargingQueue from "../models/ChargingQueue.js";
 // import chargingRecord from "../models/ChargingRecord.js";
-import chargingRequest from "../models/ChargingRequest.js";
+import chargingRequest, {
+    ChargingRequestStatus,
+} from "../models/ChargingRequest.js";
 // import chargingStats from "../models/ChargingStats.js";
 // import faultRecord from "../models/FaultRecord.js";
 import { ResponseData, IResponse } from "../IResponse.js";
@@ -57,6 +59,7 @@ export const requestCharging = async (req, res: IResponse) => {
         const pRequest = chargingRequest.create({
             userId,
             requestId,
+            status:ChargingRequestStatus.pending,
             requestTime: getDate(),
             requestMode: chargingMode,
             requestVolume: chargingAmount,
@@ -149,27 +152,42 @@ export const submitChargingResult = async (req, res: IResponse) => {
 };
 
 export const cancelCharging = async (req, res: IResponse) => {
-    // 省略取消逻辑
     // 如果在排队中，删除排队信息
     const queue = await chargingQueue.findOne({ userId: req.userId });
+    //  queuing in waiting pool
     if (queue) {
-        // delete
-        chargingQueue
-            .deleteOne({ userId: req.userId })
-            .then(async () => {
-                // console.log("delete success");
-                await dispatch();
-                res.json({ code: 0, message: "取消成功" });
-            })
-            .catch((err) => {
-                // console.log(err);
-                res.status(500).json({
-                    code: -1,
-                    message: "服务器错误 err while deleting queue",
-                });
+        try {
+            await chargingQueue.deleteOne({ userId: req.userId });
+            await chargingRequest.updateOne(
+                { requestId: queue.requestId },
+                { $set: { status: ChargingRequestStatus.canceled} }
+            );
+            await dispatch();
+            res.json({ code: 0, message: "取消成功" });
+        } catch (err) {
+            res.status(500).json({
+                code: -1,
+                message: "服务器错误 err while deleting queue",
             });
+        }
+    } else if (
+        // queuing in charging piles
+        await (async () => {
+            const requestIdInPile = await chargingPiles.distinct(
+                "queue.requestId"
+            );
+            const userIdsInPile = await chargingRequest
+                .find({ requestId: { $in: requestIdInPile } })
+                .distinct("userId");
+            return userIdsInPile.includes(req.userId);
+        })()
+    ) {
+        // TODO: 如果在充电队列中，删除充电队列记录
+        res.status(500).json({
+            code: -1,
+            message: "not implemented",
+        });
     } else {
         res.status(400).json({ code: -1, message: "用户不在排队中" });
     }
-    // TODO: 如果在充电中，删除充电信息, 生成充电记录
 };

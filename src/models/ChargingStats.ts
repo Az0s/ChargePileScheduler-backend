@@ -1,4 +1,15 @@
 import mongoose from 'mongoose'
+export interface IChargingStats extends mongoose.Document {
+    statsId: number;
+    time: Date;
+    chargingPileId: string;
+    chargingTimes: number;
+    chargingDuration: number;
+    chargingVolume: number;
+    chargingFee: number;
+    serviceFee: number;
+    totalFee: number;
+}
 /**
  * 存储充电站的统计数据
  * 包括统计ID
@@ -6,21 +17,21 @@ import mongoose from 'mongoose'
  * 充电桩ID
  * 累计充电次数
  * 累计充电时长
- * 累计充电量
+* 累计充电量 
  * 累计充电费用
  * 累计服务费用
  * 累计总费用等；
  */
 const chargingStatsSchema = new mongoose.Schema({
-    statsId: Number,
-    time: Date,
-    chargingPileId: String,
-    chargingTimes: Number,
-    chargingDuration: Number,
-    chargingVolume: Number,
-    chargingFee: Number,
-    serviceFee: Number,
-    totalFee: Number,
+    statsId: { type: Number, required: true },
+    time: { type: Date, required: true },
+    chargingPileId: { type: String, required: true },
+    chargingTimes: { type: Number, required: true },
+    chargingDuration: { type: Number, required: true },
+    chargingVolume: { type: Number, required: true },
+    chargingFee: { type: Number, required: true },
+    serviceFee: { type: Number, required: true },
+    totalFee: { type: Number, required: true },
 });
 
 chargingStatsSchema.virtual("chargingPile", {
@@ -29,4 +40,7 @@ chargingStatsSchema.virtual("chargingPile", {
     foreignField: "chargingPileId",
     justOne: true,
 });
-export default mongoose.model('ChargingStats', chargingStatsSchema)
+export default mongoose.model<IChargingStats>(
+    "ChargingStats",
+    chargingStatsSchema
+);

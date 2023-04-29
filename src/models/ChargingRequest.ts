@@ -1,13 +1,49 @@
 import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 
+export enum ChargingRequestStatus {
+    pending = "pending",
+    dispatched = "dispatched",
+    charging = "charging",
+    finished = "finished",
+    canceled = "canceled",
+}
+export interface IChargingRequest extends mongoose.Document {
+    requestId: string;
+    userId: number;
+    requestTime: Date;
+    requestMode: string;
+    requestVolume: number;
+    batteryAmount: number;
+    status: ChargingRequestStatus; // 使用枚举作为 type 类型
+}
+
+
+
 const chargingRequestSchema = new mongoose.Schema({
-    requestId: { type: String, unique: true },
-    userId: Number,
-    requestTime: Date,
-    requestMode: String,
-    requestVolume: Number,
-    batteryAmount: Number,
+    requestId: {
+        type: String, unique: true, required: true
+    },
+    userId: {
+        type: Number, required: true
+    },
+    requestTime: {
+        type: Date, required: true
+    },
+    requestMode: {
+        type: String, required: true
+    },
+    requestVolume: {
+        type: Number, required: true
+    },
+    batteryAmount: {
+        type: Number, required: true
+    },
+    status: {
+        type: String,
+        enum: Object.values(ChargingRequestStatus),
+        required: true,
+    },
 });
 
 chargingRequestSchema.pre("save", function (next) {
@@ -45,4 +81,7 @@ chargingRequestSchema.pre("save", function (next) {
 //     justOne: true,
 // });
 
-export default mongoose.model("ChargingRequests", chargingRequestSchema);
+export default mongoose.model<IChargingRequest>(
+    "ChargingRequests",
+    chargingRequestSchema
+);

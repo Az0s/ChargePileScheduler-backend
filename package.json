@@ -20,6 +20,7 @@
         "typescript": "^5.0.2"
     },
     "scripts": {
+        "playground": "ts-node ./scripts/playground.ts", 
         "docGen": "ts-node ./scripts/docGen.ts",
         "exportSchema": "ts-node ./scripts/exportSchema.ts",
         "initDB": "ts-node ./scripts/initExampleRecord.ts",

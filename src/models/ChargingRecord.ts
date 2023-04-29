@@ -1,6 +1,16 @@
 import mongoose from 'mongoose'
 import { v4 as uuidv4 } from 'uuid';
-
+export interface IChargingRecord extends mongoose.Document {
+    recordId: string;
+    userId: number;
+    chargingPileId: string;
+    startTime: Date;
+    endTime: Date;
+    volume: number;
+    chargingFee: number;
+    serviceFee: number;
+    totalFee: number;
+}
 /**
  * ChargingRecord表
  * 存储充电记录信息
@@ -15,16 +25,17 @@ import { v4 as uuidv4 } from 'uuid';
  * 服务费用
  * 总费用
  */
+
 const chargingRecordSchema = new mongoose.Schema({
-recordId: String,
-userId: Number,
-chargingPileId: String,
-startTime: Date,
-endTime: Date,
-volume: Number,
-chargingFee: Number,
-serviceFee: Number,
-totalFee: Number
+    recordId: { type: String, required: true },
+    userId: { type: Number, required: true },
+    chargingPileId: { type: String, required: true },
+    startTime: { type: Date, required: true },
+    endTime: { type: Date, required: true },
+    volume: { type: Number, required: true },
+    chargingFee: { type: Number, required: true },
+    serviceFee: { type: Number, required: true },
+    totalFee: { type: Number, required: true },
 });
 chargingRecordSchema.pre("save", function (next) {
     if (!this.recordId) {
@@ -39,4 +50,7 @@ chargingRecordSchema.virtual("user", {
     foreignField: "userId",
     justOne: true,
 });
-export default mongoose.model('ChargingRecords', chargingRecordSchema)
+export default mongoose.model<IChargingRecord>(
+    "ChargingRecords",
+    chargingRecordSchema
+);

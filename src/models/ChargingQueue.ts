@@ -1,11 +1,41 @@
 import mongoose from "mongoose";
+export interface IChargingQueue extends mongoose.Document {
+    userId: number;
+    requestId: string;
+    queueNumber: number;
+    requestType: string;
+    requestTime: Date;
+    chargingAmount: number;
+}
 const chargingQueueSchema = new mongoose.Schema({
-    userId: Number,
-    requestId: String,
-    queueNumber: Number,
-    requestType: String,
-    requestTime: Date,
-    chargingAmount: Number, // used in dispatch
+    userId: {
+        type: Number,
+        ref: "Users",
+        justOne: true,
+        required: true,
+    },
+    requestId: {
+        type: String,
+        ref: "ChargingRequests",
+        justOne: true,
+        required: true,
+    },
+    queueNumber: {
+        type: Number,
+        required: true,
+    },
+    requestType: {
+        type: String,
+        required: true,
+    },
+    requestTime: {
+        type: Date,
+        required: true,
+    },
+    chargingAmount: {
+        type: Number,
+        required: true,
+    },
 });
 
 chargingQueueSchema.virtual("user", {
@@ -14,16 +44,10 @@ chargingQueueSchema.virtual("user", {
     foreignField: "userId",
     justOne: true,
 });
-chargingQueueSchema.virtual("chargingRequest", {
-    ref: "ChargingRequests",
-    localField: "requestId",
-    foreignField: "requestId",
-    justOne: true,
-});
 // chargingQueueSchema.virtual("chargingPile", {
 //     ref: "ChargingPile",
 //     localField: "queueNumber",
 //     foreignField: "queueLength",
 //     justOne: true,
 // });
-export default mongoose.model("ChargingQueues", chargingQueueSchema);
+export default mongoose.model<IChargingQueue>("ChargingQueues", chargingQueueSchema);

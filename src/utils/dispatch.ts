@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-04-14 20:36:00
  * @LastEditors: Azus
- * @LastEditTime: 2023-04-24 17:33:12
+ * @LastEditTime: 2023-04-29 09:38:08
  * @FilePath: /ChargePileScheduler/src/utils/dispatch.ts
  * @Description: dispatch charging queue
  * 1. get charging queue
@@ -10,15 +10,20 @@
  */
 
 // import users from "../models/User.js";
+import { ObjectId } from "mongoose";
 import chargingPiles from "../models/ChargingPile.js";
 import chargingQueue from "../models/ChargingQueue.js";
+import chargingRecord from "../models/ChargingRecord.js";
+import chargingRequest, {
+    ChargingRequestStatus,
+} from "../models/ChargingRequest.js";
 // import chargingRecord from "../models/ChargingRecord.js";
 // import chargingRequest from "../models/ChargingRequest.js";
 // import chargingStats from "../models/ChargingStats.js";
 // import faultRecord from "../models/FaultRecord.js";
 
 type QueueItem = {
-    _id?: string;
+    _id?: any;
     userId: number;
     requestId: string;
     queueNumber: number;
@@ -107,12 +112,19 @@ const dispatchUser = async (
         );
         const { chargingPileId } = availablePiles[minAccomplishTimeIndex];
         // must await to ensure queue is sorted
-        const p = chargingPiles
-            .updateOne(
-                { chargingPileId },
-                { $push: { queue: { requestId: userQueueItem.requestId } } }
-            )
-            .exec();
+        const ps = [
+            chargingPiles
+                .updateOne(
+                    { chargingPileId },
+                    { $push: { queue: { requestId: userQueueItem.requestId } } }
+                )
+                .exec(),
+            chargingRequest.updateOne(
+                { requestId: userQueueItem.requestId },
+                { $set: { status: ChargingRequestStatus.dispatched } }
+            ),
+        ];
+
         dispatchedUser.push(userQueueItem.userId);
         availablePiles[minAccomplishTimeIndex].queue.push(userQueueItem);
         if (
@@ -122,7 +134,7 @@ const dispatchUser = async (
             availablePiles.splice(minAccomplishTimeIndex, 1);
         }
         userQueue.shift();
-        await p;
+        await Promise.all(ps);
     }
     return dispatchedUser;
 };
@@ -141,9 +153,20 @@ const getAvailablePiles = async (type: String): Promise<AvailablePile[]> => {
                 maxQueue: pile.maxQueue,
                 queue: await Promise.all(
                     pile.queue.map(async (requestId): Promise<QueueItem> => {
-                        return await chargingQueue.findOne({
-                            requestId,
-                        });
+                        try {
+                            const queueItem = await chargingQueue
+                                .findOne({
+                                    requestId: requestId.requestId,
+                                })
+                                .exec();
+                            if (!queueItem) {
+                                throw new Error(`queueItem not found for the specific requestId: ${requestId}`);
+                            }
+                            return queueItem;
+                        } catch (err) {
+                            console.error(err);
+                            throw err;
+                        }
                     })
                 ),
             };

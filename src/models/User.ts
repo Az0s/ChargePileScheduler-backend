@@ -21,6 +21,14 @@ const userSchema = new mongoose.Schema({
         default: false,
     },
 });
+export interface IUser extends mongoose.Document {
+    userId?: number; // userId 是可选的
+    username: string;
+    password: string;
+    phoneNumber?: string; // phoneNumber 是可选的
+    isAdmin: boolean;
+}
+
 
 userSchema.pre("save", function (next) {
     const doc = this;
@@ -45,4 +53,4 @@ userSchema.virtual("requests", {
 });
 
 
-export default mongoose.model("Users", userSchema);
+export default mongoose.model<IUser>("Users", userSchema);
