@@ -15,7 +15,7 @@ describe("adminController", () => {
             const req = {};
 
             // Call getChargingStationStatus function
-            adminController.getChargingStationStatus(req, res);
+            adminController.getChargingPileStatus(req, res);
             // Expect response to contain data array
             expect(res.json).toHaveBeenCalledWith({
                 success: true,
@@ -43,7 +43,7 @@ describe("adminController", () => {
             };
 
             // Call toggleChargingStation function
-            adminController.toggleChargingStation(req, res);
+            adminController.updateChargingPile(req, res);
             // Expect response to contain success message
             expect(res.json).toHaveBeenCalledWith({
                 success: true,
@@ -61,7 +61,7 @@ describe("adminController", () => {
             };
 
             // Call toggleChargingStation function
-            adminController.toggleChargingStation(req, res);
+            adminController.updateChargingPile(req, res);
             // Expect response to contain error message
             expect(res.json).toHaveBeenCalledWith({
                 success: false,

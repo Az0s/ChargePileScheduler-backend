@@ -7,9 +7,14 @@ export interface IChargingPile extends mongoose.Document {
     queue: {
         requestId: string;
     }[];
-    status: boolean;  
+    status: ChargingPileStatus;
 }
 
+export enum ChargingPileStatus {
+    running = "RUNNING",
+    shutdown = "SHUTDOWN",
+    unavailable = "UNAVAILABLE",
+}
 
 const chargingPileSchema = new mongoose.Schema({
     chargingPileId: {
@@ -21,7 +26,7 @@ const chargingPileSchema = new mongoose.Schema({
         required: true,
     },
     chargingType: {
-        type: String, 
+        type: String,
         required: true,
     },
     maxQueue: {
@@ -36,7 +41,11 @@ const chargingPileSchema = new mongoose.Schema({
             },
         },
     ],
-    status: Boolean,
+    status: {
+        type: String,
+        enum: Object.values(ChargingPileStatus),
+        required: true,
+    },
 });
 
 export default mongoose.model<IChargingPile>(

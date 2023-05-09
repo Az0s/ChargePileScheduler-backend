@@ -8,7 +8,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import { IResponse } from "../IResponse.js";
 
-export const isUser = async (req, res: IResponse, next) => {
+export const isUser = async (req, res: IResponse<null>, next) => {
     try {
         const userToken = getUserToken(req);
         await jwt.verify(userToken, process.env.ACCESS_TOKEN, (err, username) => {

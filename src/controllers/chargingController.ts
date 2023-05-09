@@ -10,12 +10,15 @@ import chargingRequest, {
 // import faultRecord from "../models/FaultRecord.js";
 import { ResponseData, IResponse } from "../IResponse.js";
 import dispatch from "../utils/dispatch.js";
-import { getDate, getTimestamp } from "../utils/timer.js";
+import { getDate, getTimestamp } from "../utils/timeService.js";
 import { v4 as uuidv4 } from "uuid";
 import { ClientRequest } from "http";
 
 // chargingController.js
-export const requestCharging = async (req, res: IResponse) => {
+export const requestCharging = async (
+    req,
+    res: IResponse<{ queueId: string }>
+) => {
     const { userId } = req;
     const { chargingMode, chargingAmount, batteryAmount } = req.body;
     let queueNumber = null;
@@ -75,7 +78,7 @@ export const requestCharging = async (req, res: IResponse) => {
                     code: 0,
                     message: "请求成功",
                     data: { queueId: chargingMode + queueNumber },
-                } as ResponseData);
+                });
                 return;
             });
         });
@@ -117,10 +120,9 @@ export const requestCharging = async (req, res: IResponse) => {
         res.status(400).json({
             code: -1,
             message: "排队失败: " + error.message,
-        } as ResponseData);
+        } );
         return;
     } finally {
-        // End the session
         // session.endSession();
     }
 };
@@ -232,7 +234,10 @@ function calculateChargingFee(
 
     return chargingFee;
 }
-export const submitChargingResult = async (req, res: IResponse) => {
+export const submitChargingResult = async (
+    req,
+    res: IResponse<ChargingResponseData>
+) => {
     const { userId } = req;
     try {
         const request = await chargingRequest
@@ -294,7 +299,7 @@ export const submitChargingResult = async (req, res: IResponse) => {
             chargingRecord.create({
                 userId: userId,
                 recordId: orderId,
-                requestId:request.requestId,
+                requestId: request.requestId,
                 chargingPileId: pile.chargingPileId,
                 startTime: startTime,
                 endTime: endTime,
@@ -329,7 +334,7 @@ export const submitChargingResult = async (req, res: IResponse) => {
     }
 };
 
-export const cancelCharging = async (req, res: IResponse) => {
+export const cancelCharging = async (req, res: IResponse<null>) => {
     // 如果在排队中，删除排队信息
     const queue = await chargingQueue.findOne({ userId: req.userId });
     //  queuing in waiting pool
@@ -370,7 +375,7 @@ export const cancelCharging = async (req, res: IResponse) => {
     }
 };
 
-export const getRemainAmount = async (req, res: IResponse) => {
+export const getRemainAmount = async (req, res: IResponse<{ remainingAmount : string}>) => {
     const { userId } = req;
     try {
         // 查找用户当前正在进行的充电请求
@@ -392,7 +397,8 @@ export const getRemainAmount = async (req, res: IResponse) => {
         // 计算已充电量
         const now = new Date();
         const startTime = request.startTime;
-        const elapsedTime = (now.getTime() - startTime.getTime()) / 1000/60/60;
+        const elapsedTime =
+            (now.getTime() - startTime.getTime()) / 1000 / 60 / 60;
         const chargingPile = await chargingPiles
             .findOne({ "queue.requestId": request.requestId })
             .exec();

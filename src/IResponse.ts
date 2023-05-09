@@ -1,18 +1,18 @@
 import { Response } from "express";
-export interface IResponse extends Response {
-    json(input: ResponseData);
+export interface IResponse<T> extends Response {
+    json(input: ResponseData<T>);
 }
 
-export interface ResponseData {
+export interface ResponseData<T> {
     code: number;
     message: string;
-    data?: Object;
+    data?: T;
 }
 
-export interface LoginData{
+export interface LoginData {
     token: string;
     is_admin: Boolean;
 }
-export interface chargingPileData { 
+export interface chargingPileData {
     chargingPileId: string;
 }

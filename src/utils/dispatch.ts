@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-04-14 20:36:00
  * @LastEditors: Azus
- * @LastEditTime: 2023-05-09 18:13:35
+ * @LastEditTime: 2023-05-09 20:45:25
  * @FilePath: /ChargePileScheduler/src/utils/dispatch.ts
  * @Description: dispatch charging queue
  * 1. get charging queue
@@ -10,14 +10,17 @@
  */
 
 // import users from "../models/User.js";
-import ChargingPileModel, { IChargingPile } from "../models/ChargingPile.js";
+import ChargingPileModel, {
+    IChargingPile,
+    ChargingPileStatus,
+} from "../models/ChargingPile.js";
 import ChargingQueueModel from "../models/ChargingQueue.js";
 import ChargingRecordModel from "../models/ChargingRecord.js";
 import ChargingRequestModel, {
     ChargingRequestStatus,
     IChargingRequest,
 } from "../models/ChargingRequest.js";
-import { getDate, getTimestamp } from "../utils/timer.js";
+import { getDate, getTimestamp } from "./timeService.js";
 
 type QueueItem = {
     _id?: any;
@@ -164,8 +167,7 @@ async function activateReadyCharger(): Promise<void> {
                     console.log(
                         `Charging request ${chargingRequests.requestId} is now charging.`
                     );
-                }
-                else if(chargingRequests){
+                } else if (chargingRequests) {
                     console.error(
                         `database record not found when tring to find charging request ${firstRequestIdInQueue} queried from the head of ChargingPile queue`
                     );
@@ -181,7 +183,7 @@ const getAvailablePiles = async (type: String): Promise<AvailablePile[]> => {
     try {
         const piles = await ChargingPileModel.find({
             chargingType: type,
-            status: true,
+            status: ChargingPileStatus.running,
         });
         for (let pile of piles) {
             if (pile.queue.length < pile.maxQueue && pile.status) {

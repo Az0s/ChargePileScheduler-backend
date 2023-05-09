@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import ChargingPile from "../src/models/ChargingPile";
+import ChargingPile, { ChargingPileStatus } from "../src/models/ChargingPile";
 import ChargingQueue from "../src/models/ChargingQueue";
 import ChargingRecord from "../src/models/ChargingRecord";
 import ChargingRequest, {
@@ -8,8 +8,6 @@ import ChargingRequest, {
 import ChargingStats from "../src/models/ChargingStats";
 import FaultRecord from "../src/models/FaultRecord";
 import User from "../src/models/User";
-import * as dotenv from "dotenv";
-dotenv.config();
 
 (async () => {
     const db = process.env.MONGO_URL;
@@ -28,35 +26,35 @@ dotenv.config();
             chargingPileId: "A",
             chargingPower: 30,
             chargingType: "F",
-            status: true,
+            status: ChargingPileStatus.Running,
             maxQueue: 2,
         }),
         ChargingPile.create({
             chargingPileId: "B",
             chargingPower: 30,
             chargingType: "F",
-            status: true,
+            status: ChargingPileStatus.Running,
             maxQueue: 2,
         }),
         ChargingPile.create({
             chargingPileId: "C",
             chargingPower: 7,
             chargingType: "T",
-            status: true,
+            status: ChargingPileStatus.Running,
             maxQueue: 2,
         }),
         ChargingPile.create({
             chargingPileId: "D",
             chargingPower: 7,
             chargingType: "T",
-            status: true,
+            status: ChargingPileStatus.Running,
             maxQueue: 2,
         }),
         ChargingPile.create({
             chargingPileId: "E",
             chargingPower: 7,
             chargingType: "T",
-            status: true,
+            status: ChargingPileStatus.Running,
             maxQueue: 2,
         }),
     ]);

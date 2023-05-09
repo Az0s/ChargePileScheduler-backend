@@ -8,7 +8,7 @@ import faultRecord from "../models/FaultRecord.js";
 import {IResponse} from "../IResponse.js";
 
 
-export interface Datum {
+export interface ChargingReportDatum {
     /**
      * 充电费用单位：元 精确到2位小数）
      */
@@ -58,7 +58,7 @@ export interface Datum {
      */
     volume: number;
 }
-export const getChargingReport = async (req, res: IResponse) => {
+export const getChargingReport = async (req, res: IResponse<ChargingReportDatum[]>) => {
     const userId = req.userId;
 
     try {
@@ -66,7 +66,7 @@ export const getChargingReport = async (req, res: IResponse) => {
             userId: userId,
         }).exec();
 
-        const responseData: Datum[] = userChargingRecords.map(
+        const responseData: ChargingReportDatum[] = userChargingRecords.map(
             (record: IChargingRecord) => ({
                 chargingFee: record.chargingFee,
                 chargingPileId: record.chargingPileId,

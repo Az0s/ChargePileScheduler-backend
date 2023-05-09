@@ -11,6 +11,12 @@ import { ResponseData, IResponse } from "../IResponse.js";
 import faultRecord from "../models/FaultRecord.js";
 import { ClientRequest } from "http";
 import dispatch from "../utils/dispatch.js";
+type QueueInfo = {
+    chargeId: string;
+    queueLen: number;
+    curState: "NOTCHARGING" | "WAITINGSTAGE1" | "WAITINGSTAGE2" | "CHARGING";
+    place: string; // WAITINGPLACE | ChargingPileId
+};
 /**
  *
  * @param req
@@ -20,17 +26,7 @@ import dispatch from "../utils/dispatch.js";
  * CHARGING 表示正在充电
  * @param res
  */
-export const getQueueInfo = async (req, res: IResponse) => {
-    type QueueInfo = {
-        chargeId: string;
-        queueLen: number;
-        curState:
-            | "NOTCHARGING"
-            | "WAITINGSTAGE1"
-            | "WAITINGSTAGE2"
-            | "CHARGING";
-        place: string; // WAITINGPLACE | ChargingPileId
-    };
+export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
     try {
         const { userId } = req;
         // find in chargingRequest that has status of neither 'canceled' nor 'finished'
@@ -138,7 +134,7 @@ export const getQueueInfo = async (req, res: IResponse) => {
     }
 };
 
-export const changeChargingRequest = async (req, res: IResponse) => {
+export const changeChargingRequest = async (req, res: IResponse<null>) => {
     const userId = req.userId;
     const { chargingAmount, chargingMode } = req.body;
     if (!chargingAmount || !chargingMode) {

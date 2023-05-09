@@ -6,7 +6,6 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 // import responses from "../responses.js";
 import User from "../models/User.js";
-import dotenv from "dotenv";
 import validateAdminKey from "../authenticate/validateAdminKey.js";
 import { Request, Response, NextFunction } from "express";
 import { ResponseData, LoginData, IResponse } from "../IResponse.js";
@@ -19,15 +18,13 @@ interface loginRequest {
     body: { username: string; password: string };
 }
 
-dotenv.config();
-
 /**
  *
  * @param {*} req
  * @param {*} res
  * @return {obj} {status, data:{userToken, id}, message}
  */
-export const login = async (req, res: IResponse) => {
+export const login = async (req, res: IResponse<null>) => {
     // console.log(`login request into user ${req.body["username"]}`)
     const username = req.body["username"];
     const password = req.body["password"];
@@ -36,7 +33,7 @@ export const login = async (req, res: IResponse) => {
         res.status(404).send({
             code: -1,
             message: "user not found",
-        } as ResponseData);
+        });
     } else if (await bcrypt.compare(password, usr.password)) {
         // good password
         // jwt token, userId as payload
@@ -46,7 +43,7 @@ export const login = async (req, res: IResponse) => {
             token: userToken,
             is_admin: usr.isAdmin,
         };
-        const response: ResponseData = {
+        const response = {
             code: 0,
             message: "login successful",
             data: loginData,
@@ -56,13 +53,13 @@ export const login = async (req, res: IResponse) => {
         res.status(401).send({
             code: -1,
             message: "wrong password",
-        } as ResponseData);
+        });
     }
 };
 
 export const register = async (
     req: registerRequest,
-    res: IResponse,
+    res: IResponse<null>,
     next: NextFunction
 ) => {
     const username = req.body["username"];
@@ -75,7 +72,7 @@ export const register = async (
             res.status(401).send({
                 code: -1,
                 message: "invalid admin key",
-            } as ResponseData);
+            });
             return;
         }
     }
@@ -87,7 +84,7 @@ export const register = async (
                 res.status(400).send({
                     code: -1,
                     message: "username already exists",
-                } as ResponseData);
+                });
                 return;
             }
             const crypt_password = await bcrypt.hash(password, 10);
@@ -100,7 +97,7 @@ export const register = async (
                 code: 0,
                 message:
                     "register successful as" + (isAdmin ? " admin" : " user"),
-            } as ResponseData);
+            });
         })
         .catch((err) => {
             console.error(err);
@@ -108,7 +105,7 @@ export const register = async (
                 code: -1,
                 message: "internal error. Check server log or data for details",
                 data: { error: stringify(err) },
-            } as ResponseData);
+            });
         });
 };
 // export const checkAuth = async (req, res) => {
