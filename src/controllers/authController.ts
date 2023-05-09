@@ -34,6 +34,7 @@ export const login = async (req, res: IResponse<null>) => {
             code: -1,
             message: "user not found",
         });
+        return;
     } else if (await bcrypt.compare(password, usr.password)) {
         // good password
         // jwt token, userId as payload

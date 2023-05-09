@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 export enum ChargingRequestStatus {
     pending = "pending",
     dispatched = "dispatched",
+    suspend = "suspend",    // will be applied to all pending requests when the charging pile is suspended.
     charging = "charging",
     finished = "finished",
     canceled = "canceled",
@@ -20,8 +21,6 @@ export interface IChargingRequest extends mongoose.Document {
     startTime: Date;
     recordId: string;
 }
-
-
 
 const chargingRequestSchema = new mongoose.Schema({
     requestId: {
@@ -58,10 +57,10 @@ const chargingRequestSchema = new mongoose.Schema({
         enum: Object.values(ChargingRequestStatus),
         required: true,
     },
-    recordId:{
+    recordId: {
         type: String,
         required: false,
-    }
+    },
 });
 
 chargingRequestSchema.pre("save", function (next) {
@@ -70,7 +69,6 @@ chargingRequestSchema.pre("save", function (next) {
     }
     next();
 });
-
 
 export default mongoose.model<IChargingRequest>(
     "ChargingRequests",

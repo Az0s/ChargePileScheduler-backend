@@ -10,7 +10,7 @@ import {
 const router: Router = express.Router();
 
 router.get("/query-all-piles_stat", getChargingPileStatus);
-router.post("/update-pile", updateChargingPile);
+router.put("/update-pile", updateChargingPile);
 router.get("/vehicle-status", getVehicleStatus);
 router.get("/query-queue", getQueueStatus);
 router.get("/query-report", getReport);

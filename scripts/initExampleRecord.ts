@@ -8,7 +8,8 @@ import ChargingRequest, {
 import ChargingStats from "../src/models/ChargingStats";
 import FaultRecord from "../src/models/FaultRecord";
 import User from "../src/models/User";
-
+import * as dotenv from 'dotenv'
+dotenv.config();
 (async () => {
     const db = process.env.MONGO_URL;
     // 连接数据库
@@ -26,35 +27,35 @@ import User from "../src/models/User";
             chargingPileId: "A",
             chargingPower: 30,
             chargingType: "F",
-            status: ChargingPileStatus.Running,
+            status: ChargingPileStatus.running,
             maxQueue: 2,
         }),
         ChargingPile.create({
             chargingPileId: "B",
             chargingPower: 30,
             chargingType: "F",
-            status: ChargingPileStatus.Running,
+            status: ChargingPileStatus.running,
             maxQueue: 2,
         }),
         ChargingPile.create({
             chargingPileId: "C",
             chargingPower: 7,
             chargingType: "T",
-            status: ChargingPileStatus.Running,
+            status: ChargingPileStatus.running,
             maxQueue: 2,
         }),
         ChargingPile.create({
             chargingPileId: "D",
             chargingPower: 7,
             chargingType: "T",
-            status: ChargingPileStatus.Running,
+            status: ChargingPileStatus.running,
             maxQueue: 2,
         }),
         ChargingPile.create({
             chargingPileId: "E",
             chargingPower: 7,
             chargingType: "T",
-            status: ChargingPileStatus.Running,
+            status: ChargingPileStatus.running,
             maxQueue: 2,
         }),
     ]);

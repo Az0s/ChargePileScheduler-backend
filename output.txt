@@ -1,16 +1,12 @@
 ======= ChargingPile.ts =======
-import mongoose from "mongoose";
-export interface IChargingPile extends mongoose.Document {
-    chargingPileId: string;
-    chargingPower: number;
-    chargingType: string;
-    maxQueue: number;
-    queue: {
-        requestId: string;
-    }[];
-    status: boolean;  
-}
 
+
+
+export enum ChargingPileStatus {
+    running = "RUNNING",
+    shutdown = "SHUTDOWN",
+    unavailable = "UNAVAILABLE",
+}
 
 const chargingPileSchema = new mongoose.Schema({
     chargingPileId: {
@@ -22,7 +18,7 @@ const chargingPileSchema = new mongoose.Schema({
         required: true,
     },
     chargingType: {
-        type: String, 
+        type: String,
         required: true,
     },
     maxQueue: {
@@ -37,25 +33,58 @@ const chargingPileSchema = new mongoose.Schema({
             },
         },
     ],
-    status: Boolean,
+    status: {
+        type: String,
+        enum: Object.values(ChargingPileStatus),
+        required: true,
+    },
 });
 
-export default mongoose.model<IChargingPile>(
-    "ChargingPiles",
-    chargingPileSchema
-);
+
+
+
+======= ChargingPileStats.ts =======
+
+
+
+const chargingPileStatsSchema = new mongoose.Schema({
+    chargingPileId: {
+        type: String,
+        ref: "ChargingPile",
+        required: true,
+        unique: true,
+    },
+    totalChargingSessions: {
+        type: Number,
+        default: 0,
+    },
+    totalChargingDuration: {
+        type: Number,
+        default: 0,
+    },
+    totalChargingVolume: {
+        type: Number,
+        default: 0,
+    },
+    totalChargingFee: {
+        type: Number,
+        default: 0,
+    },
+    totalServiceFee: {
+        type: Number,
+        default: 0,
+    },
+    totalFee: {
+        type: Number,
+        default: 0,
+    },
+});
+
+
 
 
 ======= ChargingQueue.ts =======
-import mongoose from "mongoose";
-export interface IChargingQueue extends mongoose.Document {
-    userId: number;
-    requestId: string;
-    queueNumber: number;
-    requestType: string;
-    requestTime: Date;
-    requestVolume: number;
-}
+
 const chargingQueueSchema = new mongoose.Schema({
     userId: {
         type: Number,
@@ -87,35 +116,10 @@ const chargingQueueSchema = new mongoose.Schema({
     },
 });
 
-chargingQueueSchema.virtual("user", {
-    ref: "Users",
-    localField: "userId",
-    foreignField: "userId",
-    justOne: true,
-});
-// chargingQueueSchema.virtual("chargingPile", {
-//     ref: "ChargingPile",
-//     localField: "queueNumber",
-//     foreignField: "queueLength",
-//     justOne: true,
-// });
-export default mongoose.model<IChargingQueue>("ChargingQueues", chargingQueueSchema);
 
 
 ======= ChargingRecord.ts =======
-import mongoose from 'mongoose'
-import { v4 as uuidv4 } from 'uuid';
-export interface IChargingRecord extends mongoose.Document {
-    recordId: string;
-    userId: number;
-    chargingPileId: string;
-    startTime: Date;
-    endTime: Date;
-    volume: number;
-    chargingFee: number;
-    serviceFee: number;
-    totalFee: number;
-}
+
 /**
  * ChargingRecord表
  * 存储充电记录信息
@@ -141,28 +145,13 @@ const chargingRecordSchema = new mongoose.Schema({
     chargingFee: { type: Number, required: true },
     serviceFee: { type: Number, required: true },
     totalFee: { type: Number, required: true },
-});
-chargingRecordSchema.pre("save", function (next) {
-    if (!this.recordId) {
-        this.recordId = uuidv4();
-    }
-    next();
+    requestId:{type: String, required: true},
 });
 
-chargingRecordSchema.virtual("user", {
-    ref: "User",
-    localField: "userId",
-    foreignField: "userId",
-    justOne: true,
-});
-export default mongoose.model<IChargingRecord>(
-    "ChargingRecords",
-    chargingRecordSchema
-);
 
 ======= ChargingRequest.ts =======
-import mongoose from "mongoose";
-import { v4 as uuidv4 } from "uuid";
+
+
 
 export enum ChargingRequestStatus {
     pending = "pending",
@@ -171,101 +160,50 @@ export enum ChargingRequestStatus {
     finished = "finished",
     canceled = "canceled",
 }
-export interface IChargingRequest extends mongoose.Document {
-    requestId: string;
-    userId: number;
-    requestTime: Date;
-    requestMode: string;
-    requestVolume: number;
-    batteryAmount: number;
-    status: ChargingRequestStatus; // 使用枚举作为 type 类型
-}
-
-
 
 const chargingRequestSchema = new mongoose.Schema({
     requestId: {
-        type: String, unique: true, required: true
+        type: String,
+        unique: true,
+        required: true,
     },
     userId: {
-        type: Number, required: true
+        type: Number,
+        required: true,
     },
     requestTime: {
-        type: Date, required: true
+        type: Date,
+        required: true,
     },
     requestMode: {
-        type: String, required: true
+        type: String,
+        required: true,
     },
     requestVolume: {
-        type: Number, required: true
+        type: Number,
+        required: true,
     },
     batteryAmount: {
-        type: Number, required: true
+        type: Number,
+        required: true,
     },
     startTime: {
-        type: Date, required: false
+        type: Date,
+        required: false,
     },
     status: {
         type: String,
         enum: Object.values(ChargingRequestStatus),
         required: true,
     },
-});
-
-chargingRequestSchema.pre("save", function (next) {
-    if (!this.requestId) {
-        this.requestId = uuidv4();
+    recordId:{
+        type: String,
+        required: false,
     }
-    next();
 });
-
-//! use uuidv4 instead to enable manual generate requestId on the fly
-// // auto generate requestId
-// chargingRequestSchema.pre("save", async function (next) {
-//     const doc = this;
-//     const chargingRequest = mongoose.model(
-//         "ChargingRequests",
-//         chargingRequestSchema
-//     );
-//     // const count = await chargingRequest.countDocuments();
-//     chargingRequest
-//         .find()
-//         .sort({ requestId: -1 })
-//         .limit(1)
-//         .exec()
-//         .then((res) => {
-//             doc.requestId = res.length > 0 ? res[0].requestId + 1 : 1;
-//             next();
-//         })
-//         .catch((err) => next(err));
-// });
-
-// chargingRequestSchema.virtual("queue", {
-//     ref: "ChargingQueue",
-//     localField: "requestId",
-//     foreignField: "queueNumber",
-//     justOne: true,
-// });
-
-export default mongoose.model<IChargingRequest>(
-    "ChargingRequests",
-    chargingRequestSchema
-);
 
 
 ======= ChargingStats.ts =======
-import mongoose from 'mongoose'
-export interface IChargingStats extends mongoose.Document {
-    statsId: number;
-    time: Date;
-    chargingPileId: string;
-    chargingTimes: number;
-    chargingDuration: number;
-    chargingVolume: number;
-    chargingFee: number;
-    serviceFee: number;
-    totalFee: number;
-}
 /**
  * 存储充电站的统计数据
  * 包括统计ID
@@ -290,16 +228,6 @@ const chargingStatsSchema = new mongoose.Schema({
     totalFee: { type: Number, required: true },
 });
 
-chargingStatsSchema.virtual("chargingPile", {
-    ref: "ChargingPile",
-    localField: "chargingPileId",
-    foreignField: "chargingPileId",
-    justOne: true,
-});
-export default mongoose.model<IChargingStats>(
-    "ChargingStats",
-    chargingStatsSchema
-);
 
 
 ======= FaultRecord.ts =======
@@ -320,7 +248,7 @@ export default mongoose.model('FaultRecords', faultRecordSchema)
 
 ======= User.ts =======
 // const mongoose = require("mongoose");
-import mongoose from "mongoose";
+
 
 const userSchema = new mongoose.Schema({
     userId: {
@@ -342,38 +270,3 @@ const userSchema = new mongoose.Schema({
         default: false,
     },
 });
-export interface IUser extends mongoose.Document {
-    userId?: number; // userId 是可选的
-    username: string;
-    password: string;
-    phoneNumber?: string; // phoneNumber 是可选的
-    isAdmin: boolean;
-}
-
-
-userSchema.pre("save", function (next) {
-    const doc = this;
-    // Find the highest userId in the collection
-    // and increment it by 1 for the new user
-    const User = mongoose.model("User", userSchema);
-    User.find()
-        .sort({ userId: -1 })
-        .limit(1)
-        .exec()
-        .then((result) => {
-            doc.userId = result.length > 0 ? result[0].userId + 1 : 1;
-            next(); // Call the next middleware
-        })
-        .catch((err) => next(err));
-});
-
-userSchema.virtual("requests", {
-    ref: "ChargingRequest",
-    localField: "userId",
-    foreignField: "userId",
-});
-
-
-export default mongoose.model<IUser>("Users", userSchema);
-
-

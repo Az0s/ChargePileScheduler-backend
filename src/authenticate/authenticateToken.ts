@@ -31,6 +31,7 @@ export const isUser = async (req, res: IResponse<null>, next) => {
         });
     } catch (error) {
         res.status(401).send({ code: -1, message: "unauthorized token" });
+        return;
     }
 };
 export const isAdmin = async (req, res, next) => {
@@ -59,6 +60,7 @@ export const isAdmin = async (req, res, next) => {
         );
     } catch (error) {
         res.status(401).send({ code: -1, message: "unauthorized token" });
+        return;
     }
 };
 

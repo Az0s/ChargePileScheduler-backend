@@ -137,7 +137,11 @@ export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
 export const changeChargingRequest = async (req, res: IResponse<null>) => {
     const userId = req.userId;
     const { chargingAmount, chargingMode } = req.body;
-    if (!chargingAmount || !chargingMode) {
+    if (
+        !chargingAmount ||
+        !chargingMode ||
+        !["F", "T"].includes(chargingMode)
+    ) {
         res.status(200).json({
             code: -1,
             message: "缺少参数",

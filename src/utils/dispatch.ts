@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-04-14 20:36:00
  * @LastEditors: Azus
- * @LastEditTime: 2023-05-09 20:45:25
+ * @LastEditTime: 2023-05-10 04:58:04
  * @FilePath: /ChargePileScheduler/src/utils/dispatch.ts
  * @Description: dispatch charging queue
  * 1. get charging queue
@@ -21,6 +21,8 @@ import ChargingRequestModel, {
     IChargingRequest,
 } from "../models/ChargingRequest.js";
 import { getDate, getTimestamp } from "./timeService.js";
+
+var dispatchFlag: boolean = true; // active dispatch when true
 
 type QueueItem = {
     _id?: any;
@@ -46,6 +48,20 @@ type AvailablePile = {
     chargingPileType: string;
     maxQueue: number;
     queue: IChargingRequest[];
+};
+/**
+ *
+ * @returns  active dispatch when true
+ */
+export const toggleDispatchFlag = (status: boolean) => {
+    dispatchFlag = status;
+};
+/**
+ *
+ * @returns  active dispatch when true
+ */
+export const getDispatchFlag = () => {
+    return dispatchFlag;
 };
 /**
  * @requirement: accomplish time = (waitTime+chargeTime) (waitTime = sum of all the chargeTime in pile.queue) chargeTime=chargingAmount/chargingPilePower)
@@ -235,20 +251,40 @@ const getAvailablePiles = async (type: String): Promise<AvailablePile[]> => {
  */
 export default async function dispatch() {
     try {
-        const userInQueue: IncrementalQueue = await sortChargingQueue();
-        const [availableFastPiles, availableSlowPiles] = await Promise.all([
-            getAvailablePiles("F"),
-            getAvailablePiles("T"),
-        ]);
-        const dispatchedUser = (
-            await Promise.all([
-                dispatchAwaitingUser(availableFastPiles, userInQueue.FQueue),
-                dispatchAwaitingUser(availableSlowPiles, userInQueue.TQueue),
-            ])
-        ).flat();
-        await ChargingQueueModel.deleteMany({
-            userId: { $in: dispatchedUser },
-        });
+        if (dispatchFlag) {
+            const userInQueue: IncrementalQueue = await sortChargingQueue();
+            const [availableFastPiles, availableSlowPiles] = await Promise.all([
+                getAvailablePiles("F"),
+                getAvailablePiles("T"),
+            ]);
+            const dispatchedUser = (
+                await Promise.all([
+                    dispatchAwaitingUser(
+                        availableFastPiles,
+                        userInQueue.FQueue
+                    ),
+                    dispatchAwaitingUser(
+                        availableSlowPiles,
+                        userInQueue.TQueue
+                    ),
+                ])
+            ).flat();
+            await ChargingQueueModel.deleteMany({
+                userId: { $in: dispatchedUser },
+            });
+        } else {
+            if (
+                !(await ChargingRequestModel.find({
+                    status: ChargingRequestStatus.pending,
+                }).exec())
+            ) {
+                await ChargingRequestModel.updateMany(
+                    { status: ChargingRequestStatus.suspend },
+                    { status: ChargingRequestStatus.pending }
+                ).exec();
+                toggleDispatchFlag(true);
+            }
+        }
         await Promise.all([sortChargingQueue(), activateReadyCharger()]);
         return;
     } catch (error) {
