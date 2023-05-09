@@ -113,6 +113,7 @@ dotenv.config();
         requestVolume: 90,
         batteryAmount: 100.0,
         status: ChargingRequestStatus.pending,
+        startTime: new Date(),
     });
     await ChargingRequest.create({
         requestId: "9ad2e227-001b-47e9-a783-c2d7740bc905",
@@ -122,6 +123,7 @@ dotenv.config();
         requestVolume: 90,
         batteryAmount: 100.0,
         status: ChargingRequestStatus.pending,
+        startTime: new Date(),
     });
     await ChargingRequest.create({
         requestId: "1fb2e11b-2e1b-4178-9ef9-d7ab28d9c4de",
@@ -131,6 +133,7 @@ dotenv.config();
         requestVolume: 90,
         batteryAmount: 100.0,
         status: ChargingRequestStatus.pending,
+        startTime: new Date(),
     });
 
     await ChargingStats.findOne({});

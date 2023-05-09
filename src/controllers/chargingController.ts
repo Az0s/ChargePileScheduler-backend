@@ -1,9 +1,10 @@
 // import users from "../models/User.js";
-import chargingPiles from "../models/ChargingPile.js";
+import chargingPiles, { IChargingPile } from "../models/ChargingPile.js";
 import chargingQueue from "../models/ChargingQueue.js";
-// import chargingRecord from "../models/ChargingRecord.js";
+import chargingRecord, { IChargingRecord} from "../models/ChargingRecord.js";
 import chargingRequest, {
     ChargingRequestStatus,
+    IChargingRequest,
 } from "../models/ChargingRequest.js";
 // import chargingStats from "../models/ChargingStats.js";
 // import faultRecord from "../models/FaultRecord.js";
@@ -11,34 +12,24 @@ import { ResponseData, IResponse } from "../IResponse.js";
 import dispatch from "../utils/dispatch.js";
 import { getDate, getTimestamp } from "../utils/timer.js";
 import { v4 as uuidv4 } from "uuid";
+import { ClientRequest } from "http";
 
 // chargingController.js
 export const requestCharging = async (req, res: IResponse) => {
     const { userId } = req;
     const { chargingMode, chargingAmount, batteryAmount } = req.body;
-    // 验证数据
-    if (!chargingMode || !chargingAmount) {
-        res.status(400).json({
-            code: -1,
-            message: "缺少必要参数",
-        } as ResponseData);
-        return;
-    } else if (!["F", "T"].includes(chargingMode)) {
-        res.status(400).json({
-            code: -1,
-            message: "充电模式错误 " + `expected: F or T, got: ${chargingMode}`,
-        } as ResponseData);
-        return;
-    }
-    // let session = null;
     let queueNumber = null;
     try {
+        if (!chargingMode || !chargingAmount) {
+            throw new Error("MISSING_REQUIRED_PARAMETER");
+        } else if (!["F", "T"].includes(chargingMode)) {
+            throw new Error("INVALID_CHARGING_MODE");
+        }
         // (!MAX_QUEUE_REACHED) && (!USER_ALREADY_IN_QUEUE)
         const [queueCount, userInQueue, userRequests] = await Promise.all([
             chargingQueue.countDocuments(),
             chargingQueue.findOne({ userId: userId }),
-            chargingRequest
-            .find({
+            chargingRequest.find({
                 userId: userId,
                 status: {
                     $nin: [
@@ -46,13 +37,13 @@ export const requestCharging = async (req, res: IResponse) => {
                         ChargingRequestStatus.finished,
                     ],
                 },
-            })
+            }),
         ]);
         if (queueCount >= 6) {
             throw new Error("MAX_QUEUE_REACHED");
         } else if (userInQueue) {
             throw new Error("USER_ALREADY_IN_QUEUE");
-        } else if (userRequests.length != 0) {  
+        } else if (userRequests.length != 0) {
             // console.error("USER_ALREADY_HAS_ACTIVE_REQUEST", userRequests);
             throw new Error("USER_ALREADY_HAS_ACTIVE_REQUEST");
         }
@@ -72,7 +63,7 @@ export const requestCharging = async (req, res: IResponse) => {
         const pRequest = chargingRequest.create({
             userId,
             requestId,
-            status:ChargingRequestStatus.pending,
+            status: ChargingRequestStatus.pending,
             requestTime: getDate(),
             requestMode: chargingMode,
             requestVolume: chargingAmount,
@@ -134,33 +125,136 @@ export const requestCharging = async (req, res: IResponse) => {
     }
 };
 
+interface ChargingResponseData {
+    /**
+     * 充电费用单位：元 精确到2位小数）
+     */
+    chargingFee: number;
+    /**
+     * 充电桩编号
+     */
+    chargingPileId: string;
+    /**
+     * 充电时长（单位：秒）
+     */
+    chargingTime: number;
+    /**
+     * 订单创建时间
+     */
+    createTime: Date;
+    /**
+     * 结束充电时间
+     */
+    endTime: Date;
+    /**
+     * 详单编号
+     */
+    orderId: string;
+    /**
+     * 服务费用单位：元 精确到2位小数）
+     */
+    serviceFee: number;
+    /**
+     * 开始充电时间
+     */
+    startTime: Date;
+    /**
+     * 当前时间戳
+     */
+    time: string;
+    /**
+     * 总费用单位：元 精确到2位小数）
+     */
+    totalFee: number;
+    /**
+     * 用户ID
+     */
+    userId: number;
+    /**
+     * 充电电量（单位：KWh 精确到2位小数）
+     */
+    volume: number;
+}
 export const submitChargingResult = async (req, res: IResponse) => {
-    const {
-        chargingStationId,
-        chargingAmount,
-        chargingDuration,
-        chargingFee,
-        serviceFee,
-        totalFee,
-    } = req.body;
-    // 验证数据
-    if (
-        !chargingStationId ||
-        !chargingAmount ||
-        !chargingDuration ||
-        !chargingFee ||
-        !serviceFee ||
-        !totalFee
-    ) {
-        res.status(400).json({ code: -1, message: "缺少必要参数" });
-        return;
-    }
-    // 提交结果
+    const { userId } = req;
     try {
-        // 省略提交逻辑
-        res.json({ code: 0, message: "提交成功" });
+        const request = await chargingRequest
+            .findOne({
+                userId: userId,
+                status: ChargingRequestStatus.charging,
+            })
+            .exec();
+        if (!request) {
+            console.error("active charging request not found");
+            throw new Error("active charging request not found");
+        }
+        const pile = await chargingPiles
+            .findOne({
+                userId: userId,
+                "queue.requestId": request.requestId,
+            })
+            .exec();
+        var responseData: ChargingResponseData;
+        // 补充生成详单逻辑
+        // 生成详单逻辑
+        const endTime = getDate();
+        const startTime = request.requestTime;
+        const chargingTime = (endTime.getTime() - startTime.getTime()) / 1000;
+        const volume = chargingTime * pile.chargingPower > request.batteryAmount? request.batteryAmount: chargingTime * pile.chargingPower;
+        // TODO 单位随时间变化电价 暂时只有0.5元/KWh
+        const chargingFee =volume * 0.5;
+        const serviceFee = volume * 0.8;
+        const totalFee = chargingFee + serviceFee;
+        const orderId = "CD" + getDate().getTime().toString(); // 根据时间戳生成订单号
+        responseData = {
+            chargingFee: +chargingFee.toFixed(2),
+            chargingPileId: pile.chargingPileId, 
+            chargingTime,
+            createTime: startTime,
+            endTime,
+            orderId,
+            serviceFee: +serviceFee.toFixed(2),
+            startTime,
+            time: new Date().getTime().toString(),
+            totalFee: +totalFee.toFixed(2),
+            userId: userId,
+            volume: +request.batteryAmount.toFixed(2),
+        };
+        // create new record in chargingRecord
+        await Promise.all([ chargingRecord.create({
+            userId: userId,
+            recordId: orderId,
+            chargingPileId: pile.chargingPileId,
+            startTime: startTime,
+            endTime: endTime,
+            volume: volume,
+            chargingFee: chargingFee,
+            serviceFee: serviceFee,
+            totalFee: totalFee,
+        }),
+        // update chargingRequest
+         chargingRequest.updateOne(
+            { requestId: request.requestId },
+            { $set: { status: ChargingRequestStatus.finished } }
+        ),
+        // update chargingPiles. remove requestId from queue
+         chargingPiles.updateOne(
+            { chargingPileId: pile.chargingPileId },
+            { $pop: { queue: 0} }
+        )
+        ])
+        res.json({
+            code: 1,
+            message: "success",
+            data: responseData,
+        });
     } catch (error) {
-        res.status(500).json({ code: -1, message: "服务器错误" });
+        console.error(error);
+        res.json({
+            code: -1,
+            message:
+                "error while submitting charging request. " + error.message,
+        });
     }
 };
 
@@ -173,7 +267,7 @@ export const cancelCharging = async (req, res: IResponse) => {
             await chargingQueue.deleteOne({ userId: req.userId });
             await chargingRequest.updateOne(
                 { requestId: queue.requestId },
-                { $set: { status: ChargingRequestStatus.canceled} }
+                { $set: { status: ChargingRequestStatus.canceled } }
             );
             await dispatch();
             res.json({ code: 0, message: "取消成功" });

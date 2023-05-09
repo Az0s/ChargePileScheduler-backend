@@ -19,7 +19,10 @@ export const isUser = async (req, res: IResponse, next) => {
                 User.findOne({ username }, (err, user) => {
                     if (err) {
                         res.status(401).send({ code: -1, message: "user don't exist" });
-                    } else {
+                    } else if (!user) {
+                        res.status(401).send({ code: -1, message: "user don't exist" });
+                    }
+                    else {
                         req.userId = user.userId;
                         next();
                     }

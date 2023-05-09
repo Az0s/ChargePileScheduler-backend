@@ -45,7 +45,7 @@ export const getQueueInfo = async (req, res: IResponse) => {
                 },
             })
             .sort({ requestTime: -1 });
-        if (request.length != 0) {
+        if (request.length >1) {
             console.error("user has multiple request that is in active state");
         }
         // notcharging

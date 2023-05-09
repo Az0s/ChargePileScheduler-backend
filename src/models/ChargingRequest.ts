@@ -39,6 +39,9 @@ const chargingRequestSchema = new mongoose.Schema({
     batteryAmount: {
         type: Number, required: true
     },
+    startTime: {
+        type: Date, required: false
+    },
     status: {
         type: String,
         enum: Object.values(ChargingRequestStatus),

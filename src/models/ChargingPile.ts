@@ -7,7 +7,7 @@ export interface IChargingPile extends mongoose.Document {
     queue: {
         requestId: string;
     }[];
-    status: boolean;
+    status: boolean;  
 }
 
 

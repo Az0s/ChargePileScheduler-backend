@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-04-14 20:36:00
  * @LastEditors: Azus
- * @LastEditTime: 2023-04-29 11:11:58
+ * @LastEditTime: 2023-05-07 19:54:19
  * @FilePath: /ChargePileScheduler/src/utils/dispatch.ts
  * @Description: dispatch charging queue
  * 1. get charging queue
@@ -10,7 +10,6 @@
  */
 
 // import users from "../models/User.js";
-import { ObjectId, UpdateQuery } from "mongoose";
 import chargingPiles from "../models/ChargingPile.js";
 import chargingQueue from "../models/ChargingQueue.js";
 import chargingRecord from "../models/ChargingRecord.js";
@@ -18,10 +17,6 @@ import chargingRequest, {
     ChargingRequestStatus,
     IChargingRequest,
 } from "../models/ChargingRequest.js";
-// import chargingRecord from "../models/ChargingRecord.js";
-// import chargingRequest from "../models/ChargingRequest.js";
-// import chargingStats from "../models/ChargingStats.js";
-// import faultRecord from "../models/FaultRecord.js";
 
 type QueueItem = {
     _id?: any;
@@ -112,8 +107,8 @@ const dispatchUser = async (
             (time) => time === minAccomplishTime
         );
         const { chargingPileId } = availablePiles[minAccomplishTimeIndex];
-        // must await to ensure queue is sorted
-        const ps:[Promise<any>, Promise<any>, Promise<IChargingRequest>] = [
+        // await to ensure queue is in order
+        const [, , userRequest] = await Promise.all([
             chargingPiles
                 .updateOne(
                     { chargingPileId },
@@ -129,8 +124,8 @@ const dispatchUser = async (
             chargingRequest
                 .findOne({ requestId: userQueueItem.requestId })
                 .exec(),
-        ];
-
+        ]);
+        availablePiles[minAccomplishTimeIndex].queue.push(userRequest);
         dispatchedUser.push(userQueueItem.userId);
         // availablePiles[minAccomplishTimeIndex].queue.push(prequest);
         if (
@@ -140,53 +135,56 @@ const dispatchUser = async (
             availablePiles.splice(minAccomplishTimeIndex, 1);
         }
         userQueue.shift();
-        const [, , userRequest] = await Promise.all(ps);
-        availablePiles[minAccomplishTimeIndex].queue.push(userRequest);
     }
     return dispatchedUser;
 };
 
 const getAvailablePiles = async (type: String): Promise<AvailablePile[]> => {
     var availablePiles: AvailablePile[] = [];
-    const piles = await chargingPiles.find({
-        chargingType: type,
-        status:true
-    });
-    for (let pile of piles) {
-        if (pile.queue.length < pile.maxQueue && pile.status) {
-            const availableFastPile = {
-                chargingPileId: pile.chargingPileId,
-                chargingPilePower: pile.chargingPower,
-                chargingPileType: pile.chargingType,
-                maxQueue: pile.maxQueue,
-                queue: await Promise.all(
-                    pile.queue.map(
-                        async (requestId): Promise<IChargingRequest> => {
-                            try {
-                                const request = await chargingRequest
-                                    .findOne({
-                                        requestId: requestId.requestId,
-                                    })
-                                    .exec();
-                                if (!request) {
-                                    throw new Error(
-                                        `request not found for the specific requestId: ${requestId}`
-                                    );
+    try {
+        const piles = await chargingPiles.find({
+            chargingType: type,
+            status: true,
+        });
+        for (let pile of piles) {
+            if (pile.queue.length < pile.maxQueue && pile.status) {
+                const availableFastPile = {
+                    chargingPileId: pile.chargingPileId,
+                    chargingPilePower: pile.chargingPower,
+                    chargingPileType: pile.chargingType,
+                    maxQueue: pile.maxQueue,
+                    queue: await Promise.all(
+                        pile.queue.map(
+                            async (requestId): Promise<IChargingRequest> => {
+                                try {
+                                    const request = await chargingRequest
+                                        .findOne({
+                                            requestId: requestId.requestId,
+                                        })
+                                        .exec();
+                                    if (!request) {
+                                        throw new Error(
+                                            `request not found for the specific requestId: ${requestId}`
+                                        );
+                                    }
+                                    return request;
+                                } catch (err) {
+                                    console.error(err);
+                                    throw err;
                                 }
-                                return request;
-                            } catch (err) {
-                                console.error(err);
-                                throw err;
                             }
-                        }
-                    )
-                ),
-            };
-            availablePiles.push(availableFastPile);
+                        )
+                    ),
+                };
+                availablePiles.push(availableFastPile);
+            }
         }
+        availablePiles.sort((a, b) => a.queue.length - b.queue.length);
+        return availablePiles;
+    } catch {
+        console.error("getAvailablePiles error");
+        throw new Error("getAvailablePiles error");
     }
-    availablePiles.sort((a, b) => a.queue.length - b.queue.length);
-    return availablePiles;
 };
 /*  
     当任意充电桩队列存在空位时，系统开始叫号，按照排队顺序号“先来 先到”的方式，
