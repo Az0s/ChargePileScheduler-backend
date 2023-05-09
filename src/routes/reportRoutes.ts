@@ -3,6 +3,6 @@ import { getChargingReport } from "../controllers/reportController.js";
 
 const router: Router = express.Router();
 
-router.get("/charging-report", getChargingReport);
+router.get("/charging", getChargingReport);
 
 export default router;

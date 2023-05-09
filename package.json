@@ -27,6 +27,7 @@
         "genUUID": "ts-node ./scripts/genUUID.ts",
         "rmDB": "ts-node ./scripts/rmDB.ts",
         "genTestJWT": "ts-node ./scripts/genTestJWT.ts",
+        "dispatch": "ts-node ./scripts/manualDispatch.ts",
         "build": "npx tsc",
         "start": "ts-node dist/index.js",
         "dev": "concurrently \"npx tsc --watch\" \"nodemon -q dist/index.js\"",

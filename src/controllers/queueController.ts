@@ -1,16 +1,16 @@
 import users from "../models/User.js";
-import chargingPiles from "../models/ChargingPile.js";
-import chargingQueue from "../models/ChargingQueue.js";
-import chargingRecord from "../models/ChargingRecord.js";
-import chargingRequest, {
+import ChargingPiles from "../models/ChargingPile.js";
+import ChargingQueues from "../models/ChargingQueue.js";
+import ChargingRecords from "../models/ChargingRecord.js";
+import ChargingRequests, {
     ChargingRequestStatus,
 } from "../models/ChargingRequest.js";
-import chargingStats from "../models/ChargingStats.js";
+import ChargingStats from "../models/ChargingStats.js";
 import { ResponseData, IResponse } from "../IResponse.js";
 
 import faultRecord from "../models/FaultRecord.js";
-import ChargingPile from "../models/ChargingPile.js";
 import { ClientRequest } from "http";
+import dispatch from "../utils/dispatch.js";
 /**
  *
  * @param req
@@ -34,18 +34,16 @@ export const getQueueInfo = async (req, res: IResponse) => {
     try {
         const { userId } = req;
         // find in chargingRequest that has status of neither 'canceled' nor 'finished'
-        const request = await chargingRequest
-            .find({
-                userId: userId,
-                status: {
-                    $nin: [
-                        ChargingRequestStatus.canceled,
-                        ChargingRequestStatus.finished,
-                    ],
-                },
-            })
-            .sort({ requestTime: -1 });
-        if (request.length >1) {
+        const request = await ChargingRequests.find({
+            userId: userId,
+            status: {
+                $nin: [
+                    ChargingRequestStatus.canceled,
+                    ChargingRequestStatus.finished,
+                ],
+            },
+        }).sort({ requestTime: -1 });
+        if (request.length > 1) {
             console.error("user has multiple request that is in active state");
         }
         // notcharging
@@ -63,7 +61,7 @@ export const getQueueInfo = async (req, res: IResponse) => {
             return;
         } else if (request[0].status == ChargingRequestStatus.pending) {
             // WAITINGSTAGE1
-            const queue = await chargingQueue.findOne({ userId: userId });
+            const queue = await ChargingQueues.findOne({ userId: userId });
             if (!queue) {
                 res.status(500).json({
                     code: -1,
@@ -76,16 +74,15 @@ export const getQueueInfo = async (req, res: IResponse) => {
                 code: 0,
                 message: "success",
                 data: {
-                    chargeId: `${queue.requestType}${queue.requestId}`,
+                    chargeId: `${queue.requestType}${queue.queueNumber}`,
                     queueLen: +queue.requestId,
                     curState: "WAITINGSTAGE1",
                     place: "WAITINGPLACE",
                 } as QueueInfo,
             });
-        }
-        else if (request[0].status == ChargingRequestStatus.dispatched) {
+        } else if (request[0].status == ChargingRequestStatus.dispatched) {
             // find one pile that has {requestId: request[0].requestId} in chargingPile.queue`
-            const pile = await chargingPiles.findOne({
+            const pile = await ChargingPiles.findOne({
                 chargingType: request[0].requestMode,
                 "queue.requestId": request[0].requestId,
             }).exec();
@@ -95,40 +92,41 @@ export const getQueueInfo = async (req, res: IResponse) => {
             if (queueIndex == -1) {
                 res.status(500).json({
                     code: -1,
-                    message: "error while trying to fetch user from queue in the pile",
-                })
-                throw new Error("error while trying to fetch user from queue in the pile");
+                    message:
+                        "error while trying to fetch user from queue in the pile",
+                });
+                throw new Error(
+                    "error while trying to fetch user from queue in the pile"
+                );
             }
 
-             res.json({
-                 code: 0,
-                 message: "success",
-                 data: {
-                     chargeId: null,
-                     queueLen: queueIndex,
-                     curState: "WAITINGSTAGE2",
-                     place: pile.chargingPileId,
-                 } as QueueInfo,
-             });
-        }
-        else if (request[0].status == ChargingRequestStatus.charging) {
+            res.json({
+                code: 0,
+                message: "success",
+                data: {
+                    chargeId: null,
+                    queueLen: queueIndex,
+                    curState: "WAITINGSTAGE2",
+                    place: pile.chargingPileId,
+                } as QueueInfo,
+            });
+        } else if (request[0].status == ChargingRequestStatus.charging) {
             // find one pile that has {requestId: request[0].requestId} in chargingPile.queue`
-            const pile = await chargingPiles.findOne({
+            const pile = await ChargingPiles.findOne({
                 chargingType: request[0].requestMode,
                 "queue.requestId": request[0].requestId,
             }).exec();
-             res.json({
-                 code: 0,
-                 message: "success",
-                 data: {
-                     chargeId: null,
-                     queueLen: 0,
-                     curState: "CHARGING",
-                     place: pile.chargingPileId,
-                 } as QueueInfo,
-             });
-        }
-        else {
+            res.json({
+                code: 0,
+                message: "success",
+                data: {
+                    chargeId: null,
+                    queueLen: 0,
+                    curState: "CHARGING",
+                    place: pile.chargingPileId,
+                } as QueueInfo,
+            });
+        } else {
             res.status(500).json({
                 code: -1,
                 message: "unknown status",
@@ -141,45 +139,75 @@ export const getQueueInfo = async (req, res: IResponse) => {
 };
 
 export const changeChargingRequest = async (req, res: IResponse) => {
-    const { type, value } = req.body;
-    // 验证数据
-    if (!type || !value) {
-        res.status(400).json({ code: -1, message: "not implemented" });
+    const userId = req.userId;
+    const { chargingAmount, chargingMode } = req.body;
+    if (!chargingAmount || !chargingMode) {
+        res.status(200).json({
+            code: -1,
+            message: "缺少参数",
+        });
         return;
     }
-    // 修改请求
     try {
-        // 省略修改逻辑
-        res.json({ code: -1, message: "not implemented" });
-    } catch (error) {
-        res.status(500).json({ code: -1, message: "not implemented" });
-    }
-};
+        const chargingRequest = await ChargingRequests.findOne({
+            userId: userId,
+            status: ChargingRequestStatus.pending,
+        }).exec();
+        if (!chargingRequest) {
+            throw new Error("无可修改的请求或正尝试修改非pending状态的请求");
+        }
+        const requestId = chargingRequest.requestId;
 
-// reportController.js
-export const getChargingReport = async (req, res: IResponse) => {
-    const { startTime, endTime, chargingStationId } = req.query;
-    // 验证数据
-    if (!startTime || !endTime) {
-        res.status(400).json({ code: -1, message: "not implemented" });
-        return;
-    }
-    // 查询报表
-    try {
-        const data = [
-            {
-                time: "2022-01-01",
-                stationId: "A",
-                chargeTimes: 10,
-                chargeDuration: "1小时",
-                chargeAmount: "100度",
-                chargeFee: 100,
-                serviceFee: 10,
-                totalFee: 110,
-            },
-        ]; // 省略查询逻辑
-        res.json({ code: -1, message: "not implemented" });
+        const newRequestData: Partial<typeof chargingRequest> = {
+            requestMode: chargingMode || chargingRequest.requestMode,
+            requestVolume: chargingAmount || chargingRequest.requestVolume,
+        };
+
+        if (chargingMode && chargingMode !== chargingRequest.requestMode) {
+            // Remove the request from the old queue
+            await ChargingQueues.findOneAndRemove({ requestId }).exec();
+
+            // Add the request to the new queue with a new queue number
+            const lastQueueNumber = await ChargingQueues.find({
+                requestType: newRequestData.requestMode,
+            })
+                .sort("-queueNumber")
+                .limit(1)
+                .exec();
+
+            const newQueueNumber =
+                lastQueueNumber.length > 0
+                    ? lastQueueNumber[0].queueNumber + 1
+                    : 1;
+
+            const newQueueData = {
+                userId,
+                requestId,
+                requestType: newRequestData.requestMode,
+                queueNumber: newQueueNumber,
+                requestTime: chargingRequest.requestTime,
+                requestVolume: newRequestData.requestVolume,
+            };
+
+            await ChargingQueues.create(newQueueData);
+        } else {
+            await ChargingQueues.updateOne(
+                { requestId },
+                newRequestData
+            ).exec();
+        }
+
+        // Update the charging request with the new data
+        await ChargingRequests.updateOne({ requestId }, newRequestData).exec();
+        await dispatch();
+        res.status(200).json({
+            code: 0,
+            message: "修改成功",
+        });
     } catch (error) {
-        res.status(500).json({ code: -1, message: "not implemented" });
+        res.status(200).json({
+            code: -1,
+            message: error.message,
+        });
     }
 };

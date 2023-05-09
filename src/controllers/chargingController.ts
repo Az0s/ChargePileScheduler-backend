@@ -1,7 +1,7 @@
 // import users from "../models/User.js";
 import chargingPiles, { IChargingPile } from "../models/ChargingPile.js";
 import chargingQueue from "../models/ChargingQueue.js";
-import chargingRecord, { IChargingRecord} from "../models/ChargingRecord.js";
+import chargingRecord, { IChargingRecord } from "../models/ChargingRecord.js";
 import chargingRequest, {
     ChargingRequestStatus,
     IChargingRequest,
@@ -175,6 +175,63 @@ interface ChargingResponseData {
      */
     volume: number;
 }
+/**
+ * 计算充电费用，根据起始时间、结束时间和充电量。
+ * 根据不同时间段的电价（峰时、平时和谷时）计算总充电费用。
+ *
+ * @param startTime 充电起始时间
+ * @param endTime 充电结束时间
+ * @param volume 充电量
+ * @returns 总充电费用
+ */
+function calculateChargingFee(
+    startTime: Date,
+    endTime: Date,
+    volume: number
+): number {
+    let chargingFee = 0;
+    let currentTime = new Date(startTime);
+    let remainingVolume = volume;
+    // 电价随时间变化
+    function getUnitPrice(time: Date): number {
+        const hour = time.getHours();
+
+        if ((hour >= 10 && hour < 15) || (hour >= 18 && hour < 21)) {
+            // 峰时 (10:00~15:00, 18:00~21:00)
+            return 1.0;
+        } else if (
+            (hour >= 7 && hour < 10) ||
+            (hour >= 15 && hour < 18) ||
+            (hour >= 21 && hour < 23)
+        ) {
+            // 平时 (7:00~10:00, 15:00~18:00, 21:00~23:00)
+            return 0.7;
+        } else {
+            // 谷时 (23:00~次日7:00)
+            return 0.4;
+        }
+    }
+    while (currentTime < endTime && remainingVolume > 0) {
+        const nextHour = new Date(currentTime);
+        nextHour.setHours(currentTime.getHours() + 1);
+        nextHour.setMinutes(0);
+        nextHour.setSeconds(0);
+
+        const timeToNextHour =
+            (nextHour.getTime() - currentTime.getTime()) / 1000;
+        const unitPrice = getUnitPrice(currentTime);
+        const volumeForCurrentHour = Math.min(
+            timeToNextHour * unitPrice,
+            remainingVolume
+        );
+
+        chargingFee += volumeForCurrentHour * unitPrice;
+        remainingVolume -= volumeForCurrentHour;
+        currentTime = nextHour;
+    }
+
+    return chargingFee;
+}
 export const submitChargingResult = async (req, res: IResponse) => {
     const { userId } = req;
     try {
@@ -197,18 +254,30 @@ export const submitChargingResult = async (req, res: IResponse) => {
         var responseData: ChargingResponseData;
         // 补充生成详单逻辑
         // 生成详单逻辑
+        if (!pile) {
+            console.error("charging pile not found");
+            throw new Error("charging pile not found");
+        }
+
         const endTime = getDate();
         const startTime = request.requestTime;
-        const chargingTime = (endTime.getTime() - startTime.getTime()) / 1000;
-        const volume = chargingTime * pile.chargingPower > request.batteryAmount? request.batteryAmount: chargingTime * pile.chargingPower;
-        // TODO 单位随时间变化电价 暂时只有0.5元/KWh
-        const chargingFee =volume * 0.5;
+        // chargingTime, in hours
+        const chargingTime =
+            (endTime.getTime() - startTime.getTime()) / 1000 / 60 / 60;
+        const volume =
+            chargingTime * pile.chargingPower > request.batteryAmount
+                ? request.batteryAmount
+                : chargingTime * pile.chargingPower;
+
+        // TODO 单位随时间变化电价 验证正确性
+        const chargingFee = calculateChargingFee(startTime, endTime, volume);
+
         const serviceFee = volume * 0.8;
         const totalFee = chargingFee + serviceFee;
         const orderId = "CD" + getDate().getTime().toString(); // 根据时间戳生成订单号
         responseData = {
             chargingFee: +chargingFee.toFixed(2),
-            chargingPileId: pile.chargingPileId, 
+            chargingPileId: pile.chargingPileId,
             chargingTime,
             createTime: startTime,
             endTime,
@@ -218,31 +287,33 @@ export const submitChargingResult = async (req, res: IResponse) => {
             time: new Date().getTime().toString(),
             totalFee: +totalFee.toFixed(2),
             userId: userId,
-            volume: +request.batteryAmount.toFixed(2),
+            volume: +volume.toFixed(2),
         };
         // create new record in chargingRecord
-        await Promise.all([ chargingRecord.create({
-            userId: userId,
-            recordId: orderId,
-            chargingPileId: pile.chargingPileId,
-            startTime: startTime,
-            endTime: endTime,
-            volume: volume,
-            chargingFee: chargingFee,
-            serviceFee: serviceFee,
-            totalFee: totalFee,
-        }),
-        // update chargingRequest
-         chargingRequest.updateOne(
-            { requestId: request.requestId },
-            { $set: { status: ChargingRequestStatus.finished } }
-        ),
-        // update chargingPiles. remove requestId from queue
-         chargingPiles.updateOne(
-            { chargingPileId: pile.chargingPileId },
-            { $pop: { queue: 0} }
-        )
-        ])
+        await Promise.all([
+            chargingRecord.create({
+                userId: userId,
+                recordId: orderId,
+                requestId:request.requestId,
+                chargingPileId: pile.chargingPileId,
+                startTime: startTime,
+                endTime: endTime,
+                volume: volume,
+                chargingFee: chargingFee,
+                serviceFee: serviceFee,
+                totalFee: totalFee,
+            }),
+            // update chargingRequest
+            chargingRequest.updateOne(
+                { requestId: request.requestId },
+                { $set: { status: ChargingRequestStatus.finished } }
+            ),
+            // update chargingPiles. remove requestId from queue
+            chargingPiles.updateOne(
+                { chargingPileId: pile.chargingPileId },
+                { $pull: { queue: { requestId: request.requestId } } }
+            ),
+        ]);
         res.json({
             code: 1,
             message: "success",
@@ -292,9 +363,61 @@ export const cancelCharging = async (req, res: IResponse) => {
         // TODO: 如果在充电队列中，删除充电队列记录
         res.status(500).json({
             code: -1,
-            message: "not implemented",
+            message: "如果在充电队列中，删除充电队列记录 not implemented",
         });
     } else {
         res.status(400).json({ code: -1, message: "用户不在排队中" });
+    }
+};
+
+export const getRemainAmount = async (req, res: IResponse) => {
+    const { userId } = req;
+    try {
+        // 查找用户当前正在进行的充电请求
+        const request = await chargingRequest
+            .findOne({
+                userId: userId,
+                status: ChargingRequestStatus.charging,
+            })
+            .exec();
+
+        if (!request) {
+            res.json({
+                code: -1,
+                message: "No active charging request found for this user.",
+            });
+            return;
+        }
+
+        // 计算已充电量
+        const now = new Date();
+        const startTime = request.startTime;
+        const elapsedTime = (now.getTime() - startTime.getTime()) / 1000/60/60;
+        const chargingPile = await chargingPiles
+            .findOne({ "queue.requestId": request.requestId })
+            .exec();
+        const chargedAmount = elapsedTime * chargingPile.chargingPower;
+
+        // 计算剩余充电量
+        const remainingAmount = Math.max(
+            request.batteryAmount - chargedAmount,
+            0
+        );
+
+        res.json({
+            code: 1,
+            message: "success",
+            data: {
+                remainingAmount: remainingAmount.toFixed(2),
+            },
+        });
+    } catch (error) {
+        console.error(error);
+        res.json({
+            code: -1,
+            message:
+                "Error while fetching remaining charging amount: " +
+                error.message,
+        });
     }
 };

@@ -1,34 +1,101 @@
 import users from "../models/User.js";
 import chargingPiles from "../models/ChargingPile.js";
 import chargingQueue from "../models/ChargingQueue.js";
-import chargingRecord from "../models/ChargingRecord.js";
+import ChargingRecords, { IChargingRecord } from "../models/ChargingRecord.js";
 import chargingRequest from "../models/ChargingRequest.js";
 import chargingStats from "../models/ChargingStats.js";
 import faultRecord from "../models/FaultRecord.js";
+import {IResponse} from "../IResponse.js";
 
-export const getChargingReport = async (req, res) => {
-    const { startTime, endTime, chargingStationId } = req.query;
-    // 验证数据
-    if (!startTime || !endTime) {
-        res.status(400).json({ success: false, message: "缺少必要参数" });
-        return;
-    }
-    // 查询报表
+
+export interface Datum {
+    /**
+     * 充电费用单位：元 精确到2位小数）
+     */
+    chargingFee: number;
+    /**
+     * 充电桩编号
+     */
+    chargingPileId: string;
+    /**
+     * 充电时长（单位：秒）
+     */
+    chargingTime: number;
+    /**
+     * 订单创建时间
+     */
+    createTime: Date;
+    /**
+     * 结束充电时间
+     */
+    endTime: Date;
+    /**
+     * 详单编号
+     */
+    orderId: string;
+    /**
+     * 服务费用单位：元 精确到2位小数）
+     */
+    serviceFee: number;
+    /**
+     * 开始充电时间
+     */
+    startTime: Date;
+    /**
+     * 当前时间戳
+     */
+    time: string;
+    /**
+     * 总费用单位：元 精确到2位小数）
+     */
+    totalFee: number;
+    /**
+     * 用户ID
+     */
+    userId: number;
+    /**
+     * 充电电量（单位：KWh 精确到2位小数）
+     */
+    volume: number;
+}
+export const getChargingReport = async (req, res: IResponse) => {
+    const userId = req.userId;
+
     try {
-        const data = [
-            {
-                time: "2022-01-01",
-                stationId: "A",
-                chargeTimes: 10,
-                chargeDuration: "1小时",
-                chargeAmount: "100度",
-                chargeFee: 100,
-                serviceFee: 10,
-                totalFee: 110,
-            },
-        ]; // 省略查询逻辑
-        res.json({ success: true, data });
+        const userChargingRecords = await ChargingRecords.find({
+            userId: userId,
+        }).exec();
+
+        const responseData: Datum[] = userChargingRecords.map(
+            (record: IChargingRecord) => ({
+                chargingFee: record.chargingFee,
+                chargingPileId: record.chargingPileId,
+                chargingTime:
+                    (new Date(record.endTime).getTime() -
+                        new Date(record.startTime).getTime()) /
+                    1000,
+                createTime: record.startTime,
+                endTime: record.endTime,
+                orderId: record.recordId,
+                serviceFee: record.serviceFee,
+                startTime: record.startTime,
+                time: record.startTime.toISOString(),
+                totalFee: record.totalFee,
+                userId: record.userId,
+                volume: record.volume,
+            })
+        );
+
+        res.status(200).json({
+            code: 0,
+            data: responseData,
+            message: "查询成功",
+        });
     } catch (error) {
-        res.status(500).json({ success: false, message: "服务器错误" });
+        res.status(500).json({
+            code: -1,
+            data: [],
+            message: "查询失败",
+        });
     }
 };

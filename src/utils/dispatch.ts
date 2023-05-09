@@ -1,7 +1,7 @@
 /*
  * @Date: 2023-04-14 20:36:00
  * @LastEditors: Azus
- * @LastEditTime: 2023-05-07 19:54:19
+ * @LastEditTime: 2023-05-09 18:13:35
  * @FilePath: /ChargePileScheduler/src/utils/dispatch.ts
  * @Description: dispatch charging queue
  * 1. get charging queue
@@ -10,13 +10,14 @@
  */
 
 // import users from "../models/User.js";
-import chargingPiles from "../models/ChargingPile.js";
-import chargingQueue from "../models/ChargingQueue.js";
-import chargingRecord from "../models/ChargingRecord.js";
-import chargingRequest, {
+import ChargingPileModel, { IChargingPile } from "../models/ChargingPile.js";
+import ChargingQueueModel from "../models/ChargingQueue.js";
+import ChargingRecordModel from "../models/ChargingRecord.js";
+import ChargingRequestModel, {
     ChargingRequestStatus,
     IChargingRequest,
 } from "../models/ChargingRequest.js";
+import { getDate, getTimestamp } from "../utils/timer.js";
 
 type QueueItem = {
     _id?: any;
@@ -60,11 +61,11 @@ const getAccomplishTime = (pile: AvailablePile, user: QueueItem): number => {
 };
 
 /**
- * sort by requestType and updating queueNumber
+ * sort the chargingQueue by requestType and updating queueNumber
  * @returns sorted queue
  */
-const setIncrementalQueue = async (): Promise<IncrementalQueue> => {
-    const queue: QueueGroup[] = await chargingQueue.aggregate([
+const sortChargingQueue = async (): Promise<IncrementalQueue> => {
+    const queue: QueueGroup[] = await ChargingQueueModel.aggregate([
         { $sort: { requestType: 1, queueNumber: 1 } },
         {
             $group: {
@@ -87,12 +88,12 @@ const setIncrementalQueue = async (): Promise<IncrementalQueue> => {
             } else {
                 FQueue.push(updatedDoc);
             }
-            chargingQueue.updateOne({ _id: doc._id }, updatedDoc).exec();
+            ChargingQueueModel.updateOne({ _id: doc._id }, updatedDoc).exec();
         });
     });
     return { TQueue, FQueue };
 };
-const dispatchUser = async (
+const dispatchAwaitingUser = async (
     availablePiles: AvailablePile[],
     userQueue: QueueItem[] // mutating
 ): Promise<number[]> => {
@@ -109,21 +110,17 @@ const dispatchUser = async (
         const { chargingPileId } = availablePiles[minAccomplishTimeIndex];
         // await to ensure queue is in order
         const [, , userRequest] = await Promise.all([
-            chargingPiles
-                .updateOne(
-                    { chargingPileId },
-                    { $push: { queue: { requestId: userQueueItem.requestId } } }
-                )
-                .exec(),
-            chargingRequest
-                .updateOne(
-                    { requestId: userQueueItem.requestId },
-                    { $set: { status: ChargingRequestStatus.dispatched } }
-                )
-                .exec(),
-            chargingRequest
-                .findOne({ requestId: userQueueItem.requestId })
-                .exec(),
+            ChargingPileModel.updateOne(
+                { chargingPileId },
+                { $push: { queue: { requestId: userQueueItem.requestId } } }
+            ).exec(),
+            ChargingRequestModel.updateOne(
+                { requestId: userQueueItem.requestId },
+                { $set: { status: ChargingRequestStatus.dispatched } }
+            ).exec(),
+            ChargingRequestModel.findOne({
+                requestId: userQueueItem.requestId,
+            }).exec(),
         ]);
         availablePiles[minAccomplishTimeIndex].queue.push(userRequest);
         dispatchedUser.push(userQueueItem.userId);
@@ -139,10 +136,50 @@ const dispatchUser = async (
     return dispatchedUser;
 };
 
+async function activateReadyCharger(): Promise<void> {
+    try {
+        // 查找所有充电桩
+        const chargingPiles: IChargingPile[] = await ChargingPileModel.find();
+
+        for (const chargingPile of chargingPiles) {
+            // 检查充电桩队列中是否有等待充电的用户
+            if (chargingPile.queue.length > 0) {
+                const firstRequestIdInQueue = chargingPile.queue[0].requestId;
+
+                // 查找与该请求ID关联的充电请求
+                const chargingRequests: IChargingRequest | null =
+                    await ChargingRequestModel.findOne({
+                        requestId: firstRequestIdInQueue,
+                    });
+
+                if (
+                    chargingRequests &&
+                    chargingRequests.status === ChargingRequestStatus.dispatched
+                ) {
+                    // 更新充电请求的状态和开始时间
+                    chargingRequests.status = ChargingRequestStatus.charging;
+                    chargingRequests.startTime = getDate();
+
+                    await chargingRequests.save();
+                    console.log(
+                        `Charging request ${chargingRequests.requestId} is now charging.`
+                    );
+                }
+                else if(chargingRequests){
+                    console.error(
+                        `database record not found when tring to find charging request ${firstRequestIdInQueue} queried from the head of ChargingPile queue`
+                    );
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Error processing charging request:", error);
+    }
+}
 const getAvailablePiles = async (type: String): Promise<AvailablePile[]> => {
     var availablePiles: AvailablePile[] = [];
     try {
-        const piles = await chargingPiles.find({
+        const piles = await ChargingPileModel.find({
             chargingType: type,
             status: true,
         });
@@ -157,11 +194,10 @@ const getAvailablePiles = async (type: String): Promise<AvailablePile[]> => {
                         pile.queue.map(
                             async (requestId): Promise<IChargingRequest> => {
                                 try {
-                                    const request = await chargingRequest
-                                        .findOne({
+                                    const request =
+                                        await ChargingRequestModel.findOne({
                                             requestId: requestId.requestId,
-                                        })
-                                        .exec();
+                                        }).exec();
                                     if (!request) {
                                         throw new Error(
                                             `request not found for the specific requestId: ${requestId}`
@@ -197,19 +233,21 @@ const getAvailablePiles = async (type: String): Promise<AvailablePile[]> => {
  */
 export default async function dispatch() {
     try {
-        const userInQueue: IncrementalQueue = await setIncrementalQueue();
+        const userInQueue: IncrementalQueue = await sortChargingQueue();
         const [availableFastPiles, availableSlowPiles] = await Promise.all([
             getAvailablePiles("F"),
             getAvailablePiles("T"),
         ]);
         const dispatchedUser = (
             await Promise.all([
-                dispatchUser(availableFastPiles, userInQueue.FQueue),
-                dispatchUser(availableSlowPiles, userInQueue.TQueue),
+                dispatchAwaitingUser(availableFastPiles, userInQueue.FQueue),
+                dispatchAwaitingUser(availableSlowPiles, userInQueue.TQueue),
             ])
         ).flat();
-        await chargingQueue.deleteMany({ userId: { $in: dispatchedUser } });
-        await setIncrementalQueue();
+        await ChargingQueueModel.deleteMany({
+            userId: { $in: dispatchedUser },
+        });
+        await Promise.all([sortChargingQueue(), activateReadyCharger()]);
         return;
     } catch (error) {
         console.error(error);
@@ -223,8 +261,7 @@ export default async function dispatch() {
  */
 const printQueue = async () => {
     console.log("current queue:");
-    chargingQueue
-        .find()
+    ChargingQueueModel.find()
         .sort({ requestType: 1, queueNumber: 1 })
         .exec()
         .then((queue) => {

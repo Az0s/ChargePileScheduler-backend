@@ -102,6 +102,7 @@ dotenv.config();
         chargingFee: 1.2,
         serviceFee: 0.5,
         totalFee: 1.7,
+        requestId: "a14bc086-888f-49ed-9e15-a86165980951",
     });
 
     await ChargingRequest.findOne({});

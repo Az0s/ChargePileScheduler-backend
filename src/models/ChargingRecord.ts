@@ -4,6 +4,7 @@ export interface IChargingRecord extends mongoose.Document {
     recordId: string;
     userId: number;
     chargingPileId: string;
+    requestId: string;
     startTime: Date;
     endTime: Date;
     volume: number;
@@ -36,6 +37,7 @@ const chargingRecordSchema = new mongoose.Schema({
     chargingFee: { type: Number, required: true },
     serviceFee: { type: Number, required: true },
     totalFee: { type: Number, required: true },
+    requestId:{type: String, required: true},
 });
 chargingRecordSchema.pre("save", function (next) {
     if (!this.recordId) {
