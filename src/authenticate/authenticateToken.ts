@@ -16,7 +16,7 @@ export const isUser = async (req, res: IResponse<null>, next) => {
                 res.status(401).send({ code: -1, message: "unauthorized token" });
             } else {
                 // confirm user exists in db
-                User.findOne({ username }, (err, user) => {
+                User.findOne({ userId: username.userId }, (err, user) => {
                     if (err) {
                         res.status(401).send({ code: -1, message: "user don't exist" });
                     } else if (!user) {
@@ -48,7 +48,7 @@ export const isAdmin = async (req, res, next) => {
                 //     req.user = user.username;
                 //     next();
                 // }
-                const user =  await User.findOne({ username })
+                const user = await User.findOne({ userId: username.userId });
                 const isAdmin = user.isAdmin;
                 if (isAdmin) {
                     req.user = user.userId;

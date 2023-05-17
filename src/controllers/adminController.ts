@@ -57,7 +57,7 @@ export const getChargingPileStatus = async (
 
         const chargingStationStatusData = await Promise.all(pileStatusPromises);
         res.json({
-            code: 1,
+            code: 0,
             message: "success",
             data: chargingStationStatusData,
         });
@@ -180,7 +180,7 @@ export const getQueueStatus = async (req, res: IResponse<QueueDatum[]>) => {
 
         const queueData = await Promise.all(queueDataPromises);
         res.json({
-            code: 1,
+            code: 0,
             message: "success",
             data: queueData,
         });

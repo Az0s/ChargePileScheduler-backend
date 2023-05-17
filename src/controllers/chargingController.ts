@@ -135,7 +135,7 @@ export const submitChargingResult = async (
     try {
         const responseData = await handleChargingEnd(userId);
         res.json({
-            code: 1,
+            code: 0,
             message: "success",
             data: responseData,
         });
@@ -180,11 +180,35 @@ export const cancelCharging = async (req, res: IResponse<null>) => {
             return userIdsInPile.includes(req.userId);
         })()
     ) {
-        // TODO: 如果在充电队列中，删除充电队列记录
-        res.status(500).json({
-            code: -1,
-            message: "如果在充电队列中，删除充电队列记录 not implemented",
-        });
+        try {
+            const request = await chargingRequest.findOne({
+                userId: req.userId,
+                status: ChargingRequestStatus.pending,
+            });
+            if (request) {
+                await chargingPiles.updateOne(
+                    {},
+                    { $pull: { queue: { requestId: request.requestId } } },
+                    { multi: true }
+                );
+                await chargingRequest.updateOne(
+                    { requestId: request.requestId },
+                    { $set: { status: ChargingRequestStatus.canceled } }
+                );
+                res.json({ code: 0, message: "取消成功" });
+            } else {
+                res.status(400).json({
+                    code: -1,
+                    message: "未找到待处理的请求",
+                });
+            }
+        } catch (err) {
+            res.status(500).json({
+                code: -1,
+                message:
+                    "服务器错误 err while deleting from charging pile queue",
+            });
+        }
     } else {
         res.status(400).json({ code: -1, message: "用户不在排队中" });
     }
@@ -192,7 +216,7 @@ export const cancelCharging = async (req, res: IResponse<null>) => {
 
 export const getRemainAmount = async (
     req,
-    res: IResponse<{ remainingAmount: string }>
+    res: IResponse<{ amount: number }>
 ) => {
     const { userId } = req;
     try {
@@ -213,7 +237,7 @@ export const getRemainAmount = async (
         }
 
         // 计算已充电量
-        const now = new Date();
+        const now = getDate();
         const startTime = request.startTime;
         const elapsedTime =
             (now.getTime() - startTime.getTime()) / 1000 / 60 / 60;
@@ -224,15 +248,15 @@ export const getRemainAmount = async (
 
         // 计算剩余充电量
         const remainingAmount = Math.max(
-            request.batteryAmount - chargedAmount,
+            request.requestVolume - chargedAmount,
             0
         );
 
         res.json({
-            code: 1,
+            code: 0,
             message: "success",
             data: {
-                remainingAmount: remainingAmount.toFixed(2),
+                amount: remainingAmount,
             },
         });
     } catch (error) {

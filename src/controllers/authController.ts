@@ -92,7 +92,7 @@ export const register = async (
             await User.create({
                 username,
                 password: crypt_password,
-                admin: isAdmin,
+                isAdmin: isAdmin,
             });
             res.status(200).send({
                 code: 0,

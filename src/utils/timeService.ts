@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+
+dotenv.config();
 const startTimeEnv = process.env.START_TIME;
 const timeMultiplierEnv = process.env.TIME_MULTIPLIER || "1";
 
@@ -24,4 +27,3 @@ export const getTimestamp = (): number => {
     const simulatedDate = getDate();
     return simulatedDate.getTime();
 };
-

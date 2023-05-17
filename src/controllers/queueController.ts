@@ -48,10 +48,10 @@ export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
                 code: 0,
                 message: "success",
                 data: {
-                    chargeId: null,
+                    chargeId: "NOTCHARGING",
                     queueLen: 0,
                     curState: "NOTCHARGING",
-                    place: null,
+                    place: "NOTCHARGING",
                 } as QueueInfo,
             });
             return;
@@ -100,7 +100,7 @@ export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
                 code: 0,
                 message: "success",
                 data: {
-                    chargeId: null,
+                    chargeId: "WAITINGSTAGE2",
                     queueLen: queueIndex,
                     curState: "WAITINGSTAGE2",
                     place: pile.chargingPileId,
@@ -116,7 +116,7 @@ export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
                 code: 0,
                 message: "success",
                 data: {
-                    chargeId: null,
+                    chargeId: "CHARGING",
                     queueLen: 0,
                     curState: "CHARGING",
                     place: pile.chargingPileId,

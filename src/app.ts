@@ -1,7 +1,7 @@
 /*
  * @Date: 2022-09-20 16:21:26
  * @LastEditors: Azus
- * @LastEditTime: 2023-04-23 16:20:04
+ * @LastEditTime: 2023-05-16 21:54:55
  * @FilePath: /ChargePileScheduler/src/app.ts
  * @Description: configure express app
  */
@@ -19,7 +19,7 @@ import queueRouter from "./routes/queueRoutes.js";
 import chargingRouter from "./routes/chargingRoutes.js";
 import reportRouter from "./routes/reportRoutes.js";
 import adminRouter from "./routes/adminRoutes.js";
-
+import { getDate, getTimestamp } from "./utils/timeService.js";
 
 const app = express();
 app.use(cors());
@@ -35,6 +35,26 @@ app.use("/", authRouter);
 app.use("/queue", isUser);
 app.use("/charging", isUser);
 app.use("/report", isUser);
+app.get("/time", (req, res) => {
+    interface Data {
+        /**
+         * 日期-时间
+         */
+        datetime: Date;
+        /**
+         * UNIX 时间戳（秒）
+         */
+        timestamp: number;
+    }
+    res.send({
+        code: 0,
+        message: "success",
+        data: {
+            datetime: getDate(),
+            timestamp: getTimestamp(),
+        } as Data,
+    });
+});
 
 app.use("/queue", queueRouter);
 app.use("/charging", chargingRouter);
@@ -45,8 +65,6 @@ app.use("/admin", adminRouter);
 
 // app.use("/user", isUser);
 // app.use("/user", userRouter);
-
-
 
 // app.use("/api/messages/", )
 
