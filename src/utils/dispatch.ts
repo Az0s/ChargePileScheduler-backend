@@ -24,6 +24,7 @@ import ChargingRequestModel, {
     ChargingRequestStatus,
     IChargingRequest,
 } from "../models/ChargingRequest.js";
+import { dispatchBatch } from "./batchDispatch.js";
 import { defaultDispatch, dispatchAwaitingUser } from "./defaultDispatch.js";
 import { getDate, getTimestamp } from "./timeService.js";
 
@@ -75,7 +76,10 @@ export const getDispatchFlag = () => {
  * @param user
  * @description  calculate the accomplish time
  */
-export const getAccomplishTime = (pile: AvailablePile, user: IChargingQueue): number => {
+export const getAccomplishTime = (
+    pile: AvailablePile,
+    user: IChargingQueue
+): number => {
     const waitTime = pile.queue.reduce(
         (total, item) => total + item.requestVolume / pile.chargingPilePower,
         0
@@ -151,7 +155,6 @@ export async function activateReadyCharger(): Promise<void> {
                         ` database record not found when tring to find charging request(requestId: ${firstRequestIdInQueue}) from the head of chargingPile(Id:${chargingPile.chargingPileId})`
                     );
                 } else {
-
                 }
             }
         }
@@ -159,7 +162,9 @@ export async function activateReadyCharger(): Promise<void> {
         console.error("Error processing charging request:", error);
     }
 }
-export const getAvailablePiles = async (type: String): Promise<AvailablePile[]> => {
+export const getAvailablePiles = async (
+    type: String
+): Promise<AvailablePile[]> => {
     var availablePiles: AvailablePile[] = [];
     try {
         const piles = await ChargingPileModel.find({
@@ -216,10 +221,17 @@ export const getAvailablePiles = async (type: String): Promise<AvailablePile[]> 
  * @description: dispatch charging queue to charging piles
  */
 export default async function dispatch() {
-    console.log(`dispatch flag: ${dispatchFlag}`)
+    console.log(`dispatch flag: ${dispatchFlag}`);
     try {
         if (dispatchFlag) {
-            await defaultDispatch()
+            if (
+                process.env.DISPATCH == "default" ||
+                process.env.DISPATCH == ""
+            ) {
+                await defaultDispatch();
+            } else {
+                await dispatchBatch();
+            }
         } else {
             if (
                 !(await ChargingRequestModel.find({
@@ -234,26 +246,30 @@ export default async function dispatch() {
             }
         }
         await Promise.all([sortChargingQueue(), activateReadyCharger()]);
+        printQueue();
+        printPile();
         return;
     } catch (error) {
         console.error(error);
         throw new Error("dispatch error");
     }
 }
+/**
+ * Prints the current pile to the console.
+ * For debugging purposes only.
+ */
+const printPile = async () => {
+  console.log("Current pile:");
+  const pile = await ChargingPileModel.find().sort({ chargingPileId: 1 }).lean().exec();
+  console.table(pile);
+};
 
 /**
- * print current queue to console. dev only
- * @returns
+ * Prints the current queue to the console.
+ * For debugging purposes only.
  */
 const printQueue = async () => {
-    console.log("current queue:");
-    ChargingQueueModel.find()
-        .sort({ requestType: 1, queueNumber: 1 })
-        .exec()
-        .then((queue) => {
-            queue.forEach((doc) => {
-                console.log(doc);
-            });
-        });
-    return;
+  console.log("Current queue:");
+  const queue = await ChargingQueueModel.find().sort({ requestType: 1, queueNumber: 1 }).lean().exec();
+  console.table(queue);
 };

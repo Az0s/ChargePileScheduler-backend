@@ -70,26 +70,4 @@ describe("adminController", () => {
         });
     });
 
-    describe("getVehicleStatus", () => {
-        let res;
-        beforeEach(() => {
-            // Mock response object
-            res = {
-                status: jest.fn().mockReturnThis(),
-                json: jest.fn(),
-            };
-        });
-        it("should respond with vehicle status information", () => {
-            // Mock request data
-            const req = {};
-
-            // Call getChargingStationStatus function
-            adminController.getVehicleStatus(req, res);
-            // Expect response to contain data array
-            expect(res.json).toHaveBeenCalledWith({
-                success: true,
-                data: expect.any(Array),
-            });
-        });
-    });
 });

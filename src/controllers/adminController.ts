@@ -4,7 +4,7 @@ import ChargingPileModel, {
     IChargingPile,
 } from "../models/ChargingPile.js";
 import ChargingQueue from "../models/ChargingQueue.js";
-import ChargingRecord from "../models/ChargingRecord.js";
+import ChargingRecordModel from "../models/ChargingRecord.js";
 import ChargingRequestModel, {
     IChargingRequest,
     ChargingRequestStatus,
@@ -16,7 +16,7 @@ import ChargingPileStats, {
 import { IResponse } from "../IResponse.js";
 import ChargingPile from "../models/ChargingPile.js";
 import { handleChargingPileError } from "../utils/handleChargingPileError.js";
-import { getDate } from "../utils/timeService.js";
+import { getDate, getTimestamp } from "../utils/timeService.js";
 
 export interface ChargingStationStatusDatum {
     /**
@@ -116,22 +116,6 @@ export const updateChargingPile = async (
         return;
     } catch (error) {
         res.status(500).json({ code: -1, message: "服务器错误" });
-    }
-};
-
-export const getVehicleStatus = async (req, res) => {
-    try {
-        const data = [
-            {
-                userId: "1",
-                batteryCapacity: 100,
-                requestAmount: 20,
-                queueTime: "30分钟",
-            },
-        ]; // 省略查询逻辑
-        res.json({ success: true, data });
-    } catch (error) {
-        res.status(500).json({ success: false, message: "服务器错误" });
     }
 };
 
@@ -292,4 +276,69 @@ export interface ReportDatum {
      */
     week: number;
 }
-export const getReport = async (req, res: IResponse<ReportDatum[]>) => {};
+export const getReport = async (req, res: IResponse<ReportDatum[]>) => {
+    try {
+        const piles = await ChargingPileModel.find().exec();
+        const pileStatusPromises = piles.map(async (pile) => {
+            const stats = await ChargingPileStats.findOne({
+                chargingPileId: pile.chargingPileId,
+            }).exec();
+            // calculate the difference between the earliest chargingRecord and now
+            const earliestRecord = await ChargingRecordModel.findOne({
+                chargingPileId: pile.chargingPileId,
+            })
+                .sort({ startTime: 1 })
+                .exec();
+            const nowTime = getDate();
+            const dayDiff = Math.floor(
+                isNaN(
+                    Math.abs(
+                        nowTime.getTime() - earliestRecord?.startTime.getTime()
+                    ) /
+                        (1000 * 3600 * 24)
+                )
+                    ? 0
+                    : Math.abs(
+                          nowTime.getTime() -
+                              earliestRecord?.startTime.getTime()
+                      ) /
+                          (1000 * 3600 * 24)
+            );
+            console.log({
+                dayDiff,
+                earlyRecord: earliestRecord,
+            });
+            const weekDiff = Math.floor(dayDiff / 7);
+            const monthDiff = Math.floor(dayDiff / 30);
+
+            const datum: ReportDatum = {
+                chargingPileId: pile.chargingPileId,
+                cumulativeChargingAmount: stats?.totalChargingVolume ?? 0,
+                cumulativeChargingTime:
+                    (stats?.totalChargingDuration ?? 0) / 3600, // Convert seconds to hours
+                cumulativeUsageTimes: stats?.totalChargingSessions ?? 0,
+                cumulativeFee: stats?.totalChargingFee ?? 0,
+                cumulativeChargingFee: stats?.totalChargingFee ?? 0,
+                cumulativeServiceFee: stats?.totalServiceFee ?? 0,
+                day: dayDiff - weekDiff * 7 - monthDiff * 30,
+                week: weekDiff - monthDiff * 4,
+                month: monthDiff,
+            };
+            return datum;
+        });
+
+        const chargingStationStatusData = await Promise.all(pileStatusPromises);
+        res.json({
+            code: 0,
+            message: "success",
+            data: chargingStationStatusData,
+        });
+    } catch (error) {
+        console.error(error);
+        res.json({
+            code: -1,
+            message:
+                "error while getting charging pile status. " + error.message,
+        });
+    }
+};

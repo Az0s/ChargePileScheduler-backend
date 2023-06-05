@@ -2,7 +2,7 @@ import chargingPiles, { IChargingPile } from "../models/ChargingPile.js";
 import chargingQueue from "../models/ChargingQueue.js";
 // import chargingRecord, { IChargingRecord } from "../models/ChargingRecord.js";
 import chargingRequest, {
-    ChargingRequestStatus
+    ChargingRequestStatus,
 } from "../models/ChargingRequest.js";
 import { ResponseData, IResponse } from "../IResponse.js";
 import dispatch, { getDispatchFlag } from "../utils/dispatch.js";
@@ -25,7 +25,7 @@ export const requestCharging = async (
         } else if (!["F", "T"].includes(chargingMode)) {
             throw new Error("INVALID_CHARGING_MODE");
         } else if (batteryAmount < chargingAmount) {
-            throw new Error("ERROR_PARAMETER")
+            throw new Error("ERROR_PARAMETER");
         }
         // (!MAX_QUEUE_REACHED) && (!USER_ALREADY_IN_QUEUE)
         const [queueCount, userInQueue, userRequests] = await Promise.all([
@@ -41,7 +41,7 @@ export const requestCharging = async (
                 },
             }),
         ]);
-        if (queueCount >= 6) {
+        if (process.env.DISPATCH != "batch" && queueCount >= 6) {
             throw new Error("MAX_QUEUE_REACHED");
         } else if (userInQueue) {
             throw new Error("USER_ALREADY_IN_QUEUE");
@@ -208,11 +208,13 @@ export const cancelCharging = async (req, res: IResponse<null>) => {
                 });
             }
         } catch (err) {
-            console.error("服务器错误 err while deleting from charging pile queue", err)
+            console.error(
+                "服务器错误 err while deleting from charging pile queue",
+                err
+            );
             res.status(500).json({
                 code: -1,
-                message:
-                    "参数错误",
+                message: "参数错误",
             });
         }
     } else {

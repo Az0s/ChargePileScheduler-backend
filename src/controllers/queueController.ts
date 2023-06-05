@@ -67,7 +67,7 @@ export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
                 message: "success",
                 data: {
                     chargeId: `${queue.requestType}${queue.queueNumber}`,
-                    queueLen: +queue.requestId,
+                    queueLen: +queue.queueNumber-1,
                     curState: "WAITINGSTAGE1",
                     place: "WAITINGPLACE",
                 } as QueueInfo,
