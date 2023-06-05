@@ -233,11 +233,12 @@ export default async function dispatch() {
                 await dispatchBatch();
             }
         } else {
-            if (
-                !(await ChargingRequestModel.find({
-                    status: ChargingRequestStatus.pending,
-                }).exec())
-            ) {
+            const hasPendingRequest = await ChargingRequestModel.find({
+                status: ChargingRequestStatus.pending,
+            }).exec();
+            console.log(hasPendingRequest);
+            if (hasPendingRequest.length == 0) {
+                console.log("recovering");
                 await ChargingRequestModel.updateMany(
                     { status: ChargingRequestStatus.suspend },
                     { status: ChargingRequestStatus.pending }
@@ -259,9 +260,12 @@ export default async function dispatch() {
  * For debugging purposes only.
  */
 const printPile = async () => {
-  console.log("Current pile:");
-  const pile = await ChargingPileModel.find().sort({ chargingPileId: 1 }).lean().exec();
-  console.table(pile);
+    const pile = await ChargingPileModel.find()
+        .sort({ chargingPileId: 1 })
+        .lean()
+        .exec();
+    console.log("Current pile:");
+    console.table(pile);
 };
 
 /**
@@ -269,7 +273,10 @@ const printPile = async () => {
  * For debugging purposes only.
  */
 const printQueue = async () => {
-  console.log("Current queue:");
-  const queue = await ChargingQueueModel.find().sort({ requestType: 1, queueNumber: 1 }).lean().exec();
-  console.table(queue);
+    const queue = await ChargingQueueModel.find()
+        .sort({ requestType: 1, queueNumber: 1 })
+        .lean()
+        .exec();
+    console.log("Current queue:");
+    console.table(queue);
 };
