@@ -28,9 +28,10 @@ export const login = async (req, res: IResponse<null>) => {
     // console.log(`login request into user ${req.body["username"]}`)
     const username = req.body["username"];
     const password = req.body["password"];
+    
     const usr = await User.findOne({ username: username });
     if (!usr) {
-        res.status(404).send({
+        res.status(200).send({
             code: -1,
             message: "user not found",
         });
@@ -51,7 +52,7 @@ export const login = async (req, res: IResponse<null>) => {
         };
         res.status(200).send(response);
     } else {
-        res.status(401).send({
+        res.status(200).send({
             code: -1,
             message: "wrong password",
         });
@@ -66,11 +67,12 @@ export const register = async (
     const username = req.body["username"];
     const password = req.body["password"];
     const key = req.body["key"];
+
     let isAdmin = false;
     if (key) {
         isAdmin = validateAdminKey(key);
         if (!isAdmin) {
-            res.status(401).send({
+            res.status(200).send({
                 code: -1,
                 message: "invalid admin key",
             });
@@ -82,7 +84,7 @@ export const register = async (
         .then(async (document) => {
             if (document) {
                 // if username already exists
-                res.status(400).send({
+                res.status(200).send({
                     code: -1,
                     message: "username already exists",
                 });

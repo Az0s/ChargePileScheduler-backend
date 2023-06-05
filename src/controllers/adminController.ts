@@ -1,8 +1,14 @@
-import Users from "../models/User.js";
-import ChargingPiles, { ChargingPileStatus } from "../models/ChargingPile.js";
+import Users, { IUser } from "../models/User.js";
+import ChargingPileModel, {
+    ChargingPileStatus,
+    IChargingPile,
+} from "../models/ChargingPile.js";
 import ChargingQueue from "../models/ChargingQueue.js";
 import ChargingRecord from "../models/ChargingRecord.js";
-import ChargingRequest from "../models/ChargingRequest.js";
+import ChargingRequestModel, {
+    IChargingRequest,
+    ChargingRequestStatus,
+} from "../models/ChargingRequest.js";
 import FaultRecord from "../models/FaultRecord.js";
 import ChargingPileStats, {
     IChargingPileStats,
@@ -10,6 +16,7 @@ import ChargingPileStats, {
 import { IResponse } from "../IResponse.js";
 import ChargingPile from "../models/ChargingPile.js";
 import { handleChargingPileError } from "../utils/handleChargingPileError.js";
+import { getDate } from "../utils/timeService.js";
 
 export interface ChargingStationStatusDatum {
     /**
@@ -39,7 +46,7 @@ export const getChargingPileStatus = async (
     res: IResponse<ChargingStationStatusDatum[]>
 ) => {
     try {
-        const piles = await ChargingPiles.find().exec();
+        const piles = await ChargingPileModel.find().exec();
         const pileStatusPromises = piles.map(async (pile) => {
             const stats = await ChargingPileStats.findOne({
                 chargingPileId: pile.chargingPileId,
@@ -136,7 +143,7 @@ export interface QueueDatum {
     /**
      * 充电桩编号
      */
-    chargingPileId: number;
+    chargingPileId: string;
     /**
      * 请求充电量（单位：KWh 精确到2位小数）
      */
@@ -150,11 +157,33 @@ export interface QueueDatum {
      */
     waitingTime: number;
 }
+
 export const getQueueStatus = async (req, res: IResponse<QueueDatum[]>) => {
+    const constructDatum = (
+        user: IUser,
+        request: IChargingRequest,
+        chargingPile = undefined
+    ) => {
+        const currentTime = getDate();
+        const waitingTime =
+            (currentTime.getTime() - request?.requestTime.getTime()) / 1000; // Convert milliseconds to seconds
+        return {
+            batteryAmount: request?.batteryAmount ?? 0,
+            //! WARNING 等待区队列中无chargingPileId
+            // TODO 处理chargingPileId
+            chargingPileId:
+                chargingPile === undefined
+                    ? "WAITINGPLACE"
+                    : chargingPile.chargingPileId,
+            requireAmount: request?.requestVolume ?? 0,
+            username: user?.username ?? "",
+            waitingTime: waitingTime,
+        } as QueueDatum;
+    };
     try {
         const queues = await ChargingQueue.find().exec();
-        const queueDataPromises = queues.map(async (queueItem) => {
-            const request = await ChargingRequest.findOne({
+        const data_from_queue = queues.map(async (queueItem) => {
+            const request = await ChargingRequestModel.findOne({
                 requestId: queueItem.requestId,
             }).exec();
             const user = await Users.findOne({
@@ -163,26 +192,51 @@ export const getQueueStatus = async (req, res: IResponse<QueueDatum[]>) => {
             //    const pile = await ChargingPiles.findOne({
             //        chargingPileId: queueItem.chargingPileId,
             //    }).exec();
-
-            const currentTime = new Date();
-            const waitingTime =
-                (currentTime.getTime() - request?.requestTime.getTime()) / 1000; // Convert milliseconds to seconds
-
-            return {
-                batteryAmount: request?.batteryAmount ?? 0,
-                //! WARNING 等待区队列中无chargingPileId
-                //    chargingPileId: queueItem.chargingPileId,
-                requireAmount: request?.requestVolume ?? 0,
-                username: user?.username ?? "",
-                waitingTime: waitingTime,
-            } as QueueDatum;
+            return constructDatum(user, request);
         });
+        // 查找所有充电桩
+        const chargingPiles: IChargingPile[] = await ChargingPileModel.find();
+        const data_from_pile: Promise<QueueDatum>[] = chargingPiles.map(
+            async (chargingPile) => {
+                // 检查充电桩队列中是否有等待充电的用户
+                //! WARNING assert chargingPile.maxQueue == 2
+                if (chargingPile.queue.length > 1) {
+                    const secondRequestIdInQueue =
+                        chargingPile.queue[0].requestId;
 
-        const queueData = await Promise.all(queueDataPromises);
+                    // 查找与该请求ID关联的充电请求
+                    const chargingRequests: IChargingRequest | null =
+                        await ChargingRequestModel.findOne({
+                            requestId: secondRequestIdInQueue,
+                        });
+                    const user = await Users.findOne({
+                        userId: chargingRequests?.userId,
+                    }).exec();
+                    if (chargingRequests) {
+                        return constructDatum(
+                            user,
+                            chargingRequests,
+                            chargingPile
+                        );
+                    } else if (!chargingRequests) {
+                        //
+                        console.error(
+                            ` database record not found when tring to find charging request(requestId: ${secondRequestIdInQueue}) from the head of chargingPile(Id:${chargingPile.chargingPileId})`
+                        );
+                    } else {
+                    }
+                }
+            }
+        );
+        const queueData = await Promise.all([
+            ...data_from_queue,
+            ...data_from_pile,
+        ]);
+        // console.log();
         res.json({
             code: 0,
             message: "success",
-            data: queueData,
+            data: queueData.filter((item) => item !== undefined),
         });
     } catch (error) {
         console.error(error);
@@ -200,7 +254,7 @@ export interface ReportDatum {
     /**
      * 充电桩编号
      */
-    chargingPileId: number;
+    chargingPileId: string;
     /**
      * 累计充电量（单位：KWh 精确到2位小数）
      */
@@ -238,6 +292,4 @@ export interface ReportDatum {
      */
     week: number;
 }
-export const getReport = async (req, res: IResponse<ReportDatum[]>) => {
-
-};
+export const getReport = async (req, res: IResponse<ReportDatum[]>) => {};

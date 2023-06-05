@@ -28,23 +28,25 @@ export async function handleChargingPileError(
             console.error("Charging pile not found");
             throw new Error("Charging pile not found");
         }
-
-        // Stop charging and billing for the current charging vehicle
-        const currentRequestId = chargingPile.queue[0].requestId;
-        const currentUserId = await ChargingRequestModel.findOne({
-            requestId: currentRequestId,
-        })
-            .select("userId")
-            .exec();
-
-        if (currentUserId) {
-            await handleChargingEnd(currentUserId.userId);
+        if (chargingPile.queue.length != 0) {
+            // Stop charging and billing for the current charging vehicle
+            const currentRequestId = chargingPile.queue[0].requestId;
+            const currentUserId = await ChargingRequestModel.findOne({
+                requestId: currentRequestId,
+            })
+                .select("userId")
+                .exec();
+            if (currentUserId) {
+                await handleChargingEnd(currentUserId.userId);
+            }
         }
-
         // Suspend the calling service of the waiting area
         toggleDispatchFlag(false);
         // set all previously pending request to suspend
-        await ChargingRequestModel.updateMany({status: ChargingRequestStatus.pending}, {status: ChargingRequestStatus.suspend}).exec()
+        await ChargingRequestModel.updateMany(
+            { status: ChargingRequestStatus.pending },
+            { status: ChargingRequestStatus.suspend }
+        ).exec();
         // Dispatch vehicles in the error charging pile queue
         const errorQueue = chargingPile.queue.slice(1); // Remove the first item, which was already stopped charging
         for (const queueItem of errorQueue) {
@@ -57,7 +59,7 @@ export async function handleChargingPileError(
                 await request.save();
             }
         }
-        // dispatchFlag will be toggled when all previously dispatched requests are dispatched to new pile 
+        // dispatchFlag will be toggled when all previously dispatched requests are dispatched to new pile
 
         // Re-dispatch vehicles in the error queue
         await dispatch();

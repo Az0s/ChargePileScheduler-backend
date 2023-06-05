@@ -1,7 +1,7 @@
 /*
  * @Date: 2022-09-20 16:21:26
  * @LastEditors: Azus
- * @LastEditTime: 2023-05-16 21:54:55
+ * @LastEditTime: 2023-05-21 20:36:38
  * @FilePath: /ChargePileScheduler/src/app.ts
  * @Description: configure express app
  */
@@ -35,6 +35,7 @@ app.use("/", authRouter);
 app.use("/queue", isUser);
 app.use("/charging", isUser);
 app.use("/report", isUser);
+
 app.get("/time", (req, res) => {
     interface Data {
         /**

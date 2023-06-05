@@ -59,10 +59,6 @@ export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
             // WAITINGSTAGE1
             const queue = await ChargingQueues.findOne({ userId: userId });
             if (!queue) {
-                res.status(500).json({
-                    code: -1,
-                    message: "error while trying to fetch user from queue",
-                });
                 throw new Error("error while trying to fetch user from queue");
             }
 
@@ -86,11 +82,6 @@ export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
                 (item) => item.requestId == request[0].requestId
             );
             if (queueIndex == -1) {
-                res.status(500).json({
-                    code: -1,
-                    message:
-                        "error while trying to fetch user from queue in the pile",
-                });
                 throw new Error(
                     "error while trying to fetch user from queue in the pile"
                 );
@@ -123,10 +114,6 @@ export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
                 } as QueueInfo,
             });
         } else {
-            res.status(500).json({
-                code: -1,
-                message: "unknown status",
-            });
             throw new Error("unknown status");
         }
     } catch (error) {

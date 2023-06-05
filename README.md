@@ -43,3 +43,11 @@ Run tests with npm test
 * test: run Jest tests
 
 
+
+
+
+
+- index.ts - db & listen
+- - app.ts - boilerplate 
+- - - loginRouter - exact router and controller
+- - - - loginController  

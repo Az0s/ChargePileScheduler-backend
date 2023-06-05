@@ -2,9 +2,9 @@ import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 
 export enum ChargingRequestStatus {
-    pending = "pending",
-    dispatched = "dispatched",
-    suspend = "suspend",    // will be applied to all pending requests when the charging pile is suspended.
+    pending = "pending",    // waiting zone. i.e: T1, F2.. 
+    dispatched = "dispatched",  // dispatched to certain chargingPile, but not charging yet
+    suspend = "suspend",    // will be applied to all pending requests when the charging pile is suspended. 
     charging = "charging",
     finished = "finished",
     canceled = "canceled",

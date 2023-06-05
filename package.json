@@ -17,10 +17,10 @@
         "nodemon": "^2.0.22",
         "supertest": "^6.2.4",
         "ts-jest": "^29.1.0",
-        "typescript": "^5.0.2"
+        "typescript": "^5.0.4"
     },
     "scripts": {
-        "playground": "ts-node ./scripts/playground.ts", 
+        "playground": "ts-node ./scripts/playground.ts",
         "docGen": "ts-node ./scripts/docGen.ts",
         "exportSchema": "ts-node ./scripts/exportSchema.ts",
         "initDB": "ts-node ./scripts/initExampleRecord.ts",

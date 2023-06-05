@@ -42,7 +42,7 @@ export const isAdmin = async (req, res, next) => {
             process.env.ACCESS_TOKEN,
             async (err, username) => {
                 if (err) {
-                    res.status(401).send({ code: -1, message: "unauthorized token" });
+                    throw new Error("")
                 }
                 // else {
                 //     req.user = user.username;

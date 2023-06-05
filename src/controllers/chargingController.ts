@@ -2,8 +2,7 @@ import chargingPiles, { IChargingPile } from "../models/ChargingPile.js";
 import chargingQueue from "../models/ChargingQueue.js";
 // import chargingRecord, { IChargingRecord } from "../models/ChargingRecord.js";
 import chargingRequest, {
-    ChargingRequestStatus,
-    IChargingRequest,
+    ChargingRequestStatus
 } from "../models/ChargingRequest.js";
 import { ResponseData, IResponse } from "../IResponse.js";
 import dispatch, { getDispatchFlag } from "../utils/dispatch.js";
@@ -25,6 +24,8 @@ export const requestCharging = async (
             throw new Error("MISSING_REQUIRED_PARAMETER");
         } else if (!["F", "T"].includes(chargingMode)) {
             throw new Error("INVALID_CHARGING_MODE");
+        } else if (batteryAmount < chargingAmount) {
+            throw new Error("ERROR_PARAMETER")
         }
         // (!MAX_QUEUE_REACHED) && (!USER_ALREADY_IN_QUEUE)
         const [queueCount, userInQueue, userRequests] = await Promise.all([
@@ -116,7 +117,7 @@ export const requestCharging = async (
         await session.commitTransaction();
         */
     } catch (error) {
-        console.error(error);
+        // console.error(error);
         res.status(400).json({
             code: -1,
             message: "排队失败: " + error.message,
@@ -183,7 +184,7 @@ export const cancelCharging = async (req, res: IResponse<null>) => {
         try {
             const request = await chargingRequest.findOne({
                 userId: req.userId,
-                status: ChargingRequestStatus.pending,
+                status: ChargingRequestStatus.dispatched,
             });
             if (request) {
                 await chargingPiles.updateOne(
@@ -197,16 +198,21 @@ export const cancelCharging = async (req, res: IResponse<null>) => {
                 );
                 res.json({ code: 0, message: "取消成功" });
             } else {
+                console.log({
+                    userId: req.userId,
+                    status: ChargingRequestStatus.pending,
+                });
                 res.status(400).json({
                     code: -1,
-                    message: "未找到待处理的请求",
+                    message: "未找到正在排队区等候的请求，可能是已在充电区排队",
                 });
             }
         } catch (err) {
+            console.error("服务器错误 err while deleting from charging pile queue", err)
             res.status(500).json({
                 code: -1,
                 message:
-                    "服务器错误 err while deleting from charging pile queue",
+                    "参数错误",
             });
         }
     } else {
@@ -245,7 +251,13 @@ export const getRemainAmount = async (
             .findOne({ "queue.requestId": request.requestId })
             .exec();
         const chargedAmount = elapsedTime * chargingPile.chargingPower;
-
+        // console.log({
+        //     requestVolumn: request.requestVolume,
+        //     chargedAmount: chargedAmount,
+        //     elapsedTime,
+        //     nowTime: now.getTime(),
+        //     startTime: startTime.getTime(),
+        // });
         // 计算剩余充电量
         const remainingAmount = Math.max(
             request.requestVolume - chargedAmount,
