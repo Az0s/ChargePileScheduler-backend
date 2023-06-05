@@ -14,7 +14,12 @@ import dispatch from "../utils/dispatch.js";
 type QueueInfo = {
     chargeId: string;
     queueLen: number;
-    curState: "NOTCHARGING" | "WAITINGSTAGE1" | "WAITINGSTAGE2" | "CHARGING";
+    curState:
+        | "NOTCHARGING"
+        | "WAITINGSTAGE1"
+        | "WAITINGSTAGE2"
+        | "CHARGING"
+        | "SUSPEND";
     place: string; // WAITINGPLACE | ChargingPileId
 };
 /**
@@ -67,7 +72,7 @@ export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
                 message: "success",
                 data: {
                     chargeId: `${queue.requestType}${queue.queueNumber}`,
-                    queueLen: +queue.queueNumber-1,
+                    queueLen: +queue.queueNumber - 1,
                     curState: "WAITINGSTAGE1",
                     place: "WAITINGPLACE",
                 } as QueueInfo,
@@ -86,7 +91,6 @@ export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
                     "error while trying to fetch user from queue in the pile"
                 );
             }
-
             res.json({
                 code: 0,
                 message: "success",
@@ -113,10 +117,22 @@ export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
                     place: pile.chargingPileId,
                 } as QueueInfo,
             });
+        } else if (request[0].status === ChargingRequestStatus.suspend) {
+            res.json({
+                code: 0,
+                message: "success",
+                data: {
+                    chargeId: "SUSPEND",
+                    queueLen: 0,
+                    curState: "SUSPEND",
+                    place: "SUSPEND",
+                } as QueueInfo,
+            });
         } else {
-            throw new Error("unknown status");
+            throw new Error(`unknown status ${request[0]}`);
         }
     } catch (error) {
+        console.error("get info error", error);
         res.status(500).json({ code: -1, message: "unknown error" });
     }
 };
