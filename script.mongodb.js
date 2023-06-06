@@ -13,6 +13,8 @@
 use('chargepile');
 // delete all documents in db.chargingQueue
 db.getCollection('chargingqueues').deleteMany({});
+// delete all 
+db.getCollection('chargingpiles').deleteMany({})
 
 // // Insert a few documents into the sales collection.
 // db.getCollection('sales').insertMany([

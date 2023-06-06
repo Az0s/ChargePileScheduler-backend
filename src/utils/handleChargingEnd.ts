@@ -129,7 +129,7 @@ export default async function handleChargingEnd(
     }
     const pile = await chargingPiles
         .findOne({
-            userId: userId,
+            // userId: userId,
             "queue.requestId": request.requestId,
         })
         .exec();

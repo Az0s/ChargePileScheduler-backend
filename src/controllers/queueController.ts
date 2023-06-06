@@ -80,7 +80,8 @@ export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
         } else if (request[0].status == ChargingRequestStatus.dispatched) {
             // find one pile that has {requestId: request[0].requestId} in chargingPile.queue`
             const pile = await ChargingPiles.findOne({
-                chargingType: request[0].requestMode,
+                // will cause error when batch dispatch
+                // chargingType: request[0].requestMode,
                 "queue.requestId": request[0].requestId,
             }).exec();
             const queueIndex = pile.queue.findIndex(
@@ -90,17 +91,34 @@ export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
                 throw new Error(
                     "error while trying to fetch user from queue in the pile"
                 );
-            }
-            res.json({
-                code: 0,
-                message: "success",
-                data: {
-                    chargeId: "WAITINGSTAGE2",
-                    queueLen: queueIndex,
-                    curState: "WAITINGSTAGE2",
+            } else if (queueIndex == 0) {
+                const substitudeData = {
+                    chargeId: "CHARGING",
+                    queueLen: 0,
+                    curState: "CHARGING",
                     place: pile.chargingPileId,
-                } as QueueInfo,
-            });
+                } as QueueInfo;
+                console.error("queueIndex == 0, but status is dispatched", {
+                    requestId: request[0].requestId,
+                    requestStatus: request[0].status,
+                });
+                res.json({
+                    code: 0,
+                    message: "success",
+                    data: substitudeData,
+                });
+            } else {
+                res.json({
+                    code: 0,
+                    message: "success",
+                    data: {
+                        chargeId: "WAITINGSTAGE2",
+                        queueLen: queueIndex,
+                        curState: "WAITINGSTAGE2",
+                        place: pile.chargingPileId,
+                    } as QueueInfo,
+                });
+            }
         } else if (request[0].status == ChargingRequestStatus.charging) {
             // find one pile that has {requestId: request[0].requestId} in chargingPile.queue`
             const pile = await ChargingPiles.findOne({

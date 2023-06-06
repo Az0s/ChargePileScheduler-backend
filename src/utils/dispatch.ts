@@ -238,7 +238,7 @@ export default async function dispatch() {
             }).exec();
             console.log(hasPendingRequest);
             if (hasPendingRequest.length == 0) {
-                console.log("recovering");
+                console.log("recovering from failure");
                 await ChargingRequestModel.updateMany(
                     { status: ChargingRequestStatus.suspend },
                     { status: ChargingRequestStatus.pending }
