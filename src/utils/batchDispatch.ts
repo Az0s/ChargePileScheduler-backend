@@ -17,7 +17,10 @@
 时间)最短
 */
 
-import ChargingPileModel, { ChargingPileStatus, IChargingPile } from "../models/ChargingPile.js";
+import ChargingPileModel, {
+    ChargingPileStatus,
+    IChargingPile,
+} from "../models/ChargingPile.js";
 import ChargingQueueModel, { IChargingQueue } from "../models/ChargingQueue.js";
 import ChargingRequestModel, {
     ChargingRequestStatus,
@@ -56,14 +59,20 @@ export async function dispatchBatch(): Promise<void> {
         // otherwise dispatch in batch
 
         const userInQueue: IncrementalQueue = await sortChargingQueue();
-        const totalQueue = [...userInQueue.TQueue, ...userInQueue.FQueue];
+        // sort according to queue.requestVolume, bigger first
+        const totalQueue = [...userInQueue.TQueue, ...userInQueue.FQueue].sort(
+            (a, b) => {
+                return b.requestVolume - a.requestVolume;
+            }
+        );
+
         const totalLength = totalQueue.length;
         // accumulate all the `maxQueue` in ChargingPileModel that is in state "available"
         const aggr = await ChargingPileModel.aggregate([
             {
-                $match:{
-                    status: ChargingPileStatus.running
-                }
+                $match: {
+                    status: ChargingPileStatus.running,
+                },
             },
             {
                 $group: {
@@ -84,7 +93,6 @@ export async function dispatchBatch(): Promise<void> {
             // dispatch a batch
             const chargingPiles: IChargingPile[] =
                 await ChargingPileModel.find();
-            /* ... */
             // Dispatch charging requests to charging piles
             //! WARN: assert pile.maxQueue === 2 and no charging pile failure present
 
@@ -96,48 +104,109 @@ export async function dispatchBatch(): Promise<void> {
                     queue: [],
                 })
             );
+            const tempFastPiles: ITempPile[] = chargingPiles
+                .filter((p) => {
+                    return p.chargingType === "F";
+                })
+                .map(({ chargingPileId, chargingPower }) => ({
+                    // used in sorting
+                    chargingPileId,
+                    chargingPower,
+                    queue: [],
+                }));
+            const tempSlowPiles: ITempPile[] = chargingPiles
+                .filter((p) => {
+                    return p.chargingType === "T";
+                })
+                .map(({ chargingPileId, chargingPower }) => ({
+                    // used in sorting
+                    chargingPileId,
+                    chargingPower,
+                    queue: [],
+                }));
 
             const dispatchTable: {
                 chargingPileId: string;
                 chargingRequestId: string[];
             }[] = [];
 
-            let currentTime = getDate();
-            for (const queue of totalQueue) {
-                let minWaitTime = Infinity;
-                let selectedPile: ITempPile | undefined;
-                for (const chargingPile of tempPiles || []) {
-                    if (chargingPile.queue.length === 2) continue;
-                    const waitTime = calculateWaitTime(
-                        chargingPile,
-                        queue,
-                        currentTime
-                    );
-                    if (waitTime < minWaitTime) {
-                        minWaitTime = waitTime;
-                        selectedPile = chargingPile;
-                    }
+            // getDispatchTable(totalQueue, tempPiles, dispatchTable);
+
+            function dispatchSubsetPile(
+                subsetPile: ITempPile[],
+                subsetQueue: IChargingQueue[] // subsetQueue.length == 2 * subsetPile.length
+            ): { chargingPileId: string; chargingRequestId: string[] }[] {
+                subsetQueue.sort((a, b) => {
+                    return b.requestVolume - a.requestVolume;
+                });
+                const subsetTempTable: {
+                    chargingPileId: string;
+                    queue: IChargingQueue[];
+                }[] = subsetPile.map((pile) => ({
+                    chargingPileId: pile.chargingPileId,
+                    queue: [],
+                }));
+                for (const pileTable of subsetTempTable) {
+                    pileTable.queue.push(subsetQueue.at(-1));
+                    subsetQueue.pop();
                 }
-                if (selectedPile) {
-                    selectedPile.queue.push(queue);
-                    const existingDispatch = dispatchTable.find(
-                        (dispatch) =>
-                            dispatch.chargingPileId ===
-                            selectedPile.chargingPileId
-                    );
-                    if (existingDispatch) {
-                        existingDispatch.chargingRequestId.push(
-                            queue.requestId
-                        );
-                    } else {
-                        dispatchTable.push({
-                            chargingPileId: selectedPile.chargingPileId,
-                            chargingRequestId: [queue.requestId],
-                        });
-                    }
+                for (const pileTable of subsetTempTable) {
+                    pileTable.queue.push(subsetQueue[0]);
+                    subsetQueue.shift();
                 }
+                return subsetTempTable.map((table) => ({
+                    chargingPileId: table.chargingPileId,
+                    chargingRequestId: table.queue.map(
+                        (queue) => queue.requestId
+                    ),
+                }));
             }
-            console.log(dispatchTable);
+
+            const fastDispatchTable = dispatchSubsetPile(
+                tempFastPiles,
+                totalQueue.slice(0, tempFastPiles.length * 2)
+            );
+            const slowDispatchTable = dispatchSubsetPile(
+                tempSlowPiles, 
+                totalQueue.slice(tempFastPiles.length * 2, totalQueue.length)
+            );
+             dispatchTable.push(...fastDispatchTable.concat(slowDispatchTable))
+            // let currentTime = getDate();
+            // for (const queue of totalQueue) {
+            //     let minWaitTime = Infinity;
+            //     let selectedPile: ITempPile | undefined;
+            //     for (const chargingPile of tempPiles || []) {
+            //         if (chargingPile.queue.length === 2) continue;
+            //         const waitTime = calculateWaitTime(
+            //             chargingPile,
+            //             queue,
+            //             currentTime
+            //         );
+            //         if (waitTime < minWaitTime) {
+            //             minWaitTime = waitTime;
+            //             selectedPile = chargingPile;
+            //         }
+            //     }
+            //     if (selectedPile) {
+            //         selectedPile.queue.push(queue);
+            //         const existingDispatch = dispatchTable.find(
+            //             (dispatch) =>
+            //                 dispatch.chargingPileId ===
+            //                 selectedPile.chargingPileId
+            //         );
+            //         if (existingDispatch) {
+            //             existingDispatch.chargingRequestId.push(
+            //                 queue.requestId
+            //             );
+            //         } else {
+            //             dispatchTable.push({
+            //                 chargingPileId: selectedPile.chargingPileId,
+            //                 chargingRequestId: [queue.requestId],
+            //             });
+            //         }
+            //     }
+            // }
+            // console.log(dispatchTable);
             // update chargingPiles
             for (const table of dispatchTable) {
                 // await to ensure queue is in order
@@ -146,7 +215,11 @@ export async function dispatchBatch(): Promise<void> {
                         { chargingPileId: table.chargingPileId },
                         {
                             $push: {
-                                queue: { $each: table.chargingRequestId.map((id)=>({requestId: id})) },
+                                queue: {
+                                    $each: table.chargingRequestId.map(
+                                        (id) => ({ requestId: id })
+                                    ),
+                                },
                             },
                         }
                     ).exec(),
@@ -161,6 +234,109 @@ export async function dispatchBatch(): Promise<void> {
             }
         }
     }
+
+    function getDispatchTable(
+        totalQueue: IChargingQueue[],
+        tempPiles: ITempPile[],
+        dispatchTable: { chargingPileId: string; chargingRequestId: string[] }[]
+    ): { chargingPileId: string; chargingRequestId: string[] }[] {
+        const currentTime = getDate();
+        const n = totalQueue.length;
+        const m = tempPiles.length;
+        const dp: number[][][] = Array.from({ length: n + 1 }, () =>
+            Array.from({ length: m + 1 }, () =>
+                Array.from({ length: 3 }, () => Infinity)
+            )
+        );
+        // set dp[0][j][k] = 0
+        for (let j = 0; j < m + 1; j++) {
+            for (let k = 0; k < 3; k++) {
+                dp[0][j][k] = 0;
+            }
+        }
+
+        for (let i = 1; i <= n; i++) {
+            const queue = totalQueue[i - 1];
+            for (let j = 1; j <= m; j++) {
+                const chargingPile = tempPiles[j - 1];
+                for (let k = 0; k <= 1; k++) {
+                    if (chargingPile.queue.length === 2 && k === 1) continue;
+                    const waitTime = calculateWaitTime(
+                        chargingPile,
+                        queue,
+                        currentTime
+                    );
+                    const chargeTime = calculateChargeTime(chargingPile, queue);
+                    if (dp[i][j][k] > dp[i - 1][j][k] + waitTime) {
+                        // If the current minimum wait time for the charging pile at (i, j, k) is greater than the minimum wait time for the same charging pile at the previous time step plus the wait time for the current charging request, update the minimum wait time for the charging pile at (i, j, k).
+                        dp[i][j][k] = dp[i - 1][j][k] + waitTime;
+                    }
+                    if (
+                        k === 0 &&
+                        dp[i][j][k] > dp[i - 1][j][1] + waitTime + chargeTime
+                    ) {
+                        // If the current charging pile is not currently charging (k === 0) and the current minimum wait time for the charging pile at (i, j, k) is greater than the minimum wait time for the same charging pile at the previous time step plus the wait time for the current charging request plus the charge time for the charging pile, update the minimum wait time for the charging pile at (i, j, k).
+                        dp[i][j][k] = dp[i - 1][j][1] + waitTime + chargeTime;
+                    }
+                    if (dp[i][j][k] > dp[i][j - 1][k] + waitTime) {
+                        // If the current minimum wait time for the charging pile at (i, j, k) is greater than the minimum wait time for the same charging pile at the previous charging request plus the wait time for the current charging request, update the minimum wait time for the charging pile at (i, j, k).
+                        dp[i][j][k] = dp[i][j - 1][k] + waitTime;
+                    }
+                    if (
+                        k === 0 &&
+                        dp[i][j][k] > dp[i][j - 1][1] + waitTime + chargeTime
+                    ) {
+                        // If the current charging pile is not currently charging (k === 0) and the current minimum wait time for the charging pile at (i, j, k) is greater than the minimum wait time for the same charging pile at the previous charging request plus the wait time for the current charging request plus the charge time for the charging pile, update the minimum wait time for the charging pile at (i, j, k).
+                        dp[i][j][k] = dp[i][j - 1][1] + waitTime + chargeTime;
+                    }
+                }
+            }
+        }
+
+        let i = n,
+            j = m,
+            k = 0;
+        while (i > 0 && j > 0) {
+            const queue = totalQueue[i - 1];
+            const chargingPile = tempPiles[j - 1];
+            const waitTime = calculateWaitTime(
+                chargingPile,
+                queue,
+                currentTime
+            );
+            const chargeTime = calculateChargeTime(chargingPile, queue);
+            if (dp[i][j][k] === dp[i - 1][j][k] + waitTime) {
+                i--;
+            } else if (
+                k === 0 &&
+                dp[i][j][k] === dp[i - 1][j][1] + waitTime + chargeTime
+            ) {
+                dispatchTable.push({
+                    chargingPileId: chargingPile.chargingPileId,
+                    chargingRequestId: [queue.requestId],
+                });
+                chargingPile.queue.push(queue);
+                k = 1;
+                i--;
+            } else if (dp[i][j][k] === dp[i][j - 1][k] + waitTime) {
+                j--;
+            } else if (
+                k === 0 &&
+                dp[i][j][k] === dp[i][j - 1][1] + waitTime + chargeTime
+            ) {
+                dispatchTable.push({
+                    chargingPileId: chargingPile.chargingPileId,
+                    chargingRequestId: [queue.requestId],
+                });
+                chargingPile.queue.push(queue);
+                k = 1;
+                j--;
+            }
+        }
+        console.log("dispatchTable:");
+        console.table(dispatchTable);
+        return dispatchTable;
+    }
 }
 
 function calculateWaitTime(
@@ -173,9 +349,10 @@ function calculateWaitTime(
         queueLength === 0
             ? 0
             : chargingPile.queue[0].requestVolume / chargingPile.chargingPower;
-    return (
-        Math.max(0, waitTime) +
-        currentTime.getTime() -
-        queue.requestTime.getTime()
-    );
+    return Math.max(0, waitTime);
+    // + currentTime.getTime() -
+    // queue.requestTime.getTime()
+}
+function calculateChargeTime(chargingPile, queue) {
+    return (1000 * 3600 * queue.requestVolume) / chargingPile.chargingPower;
 }
