@@ -65,24 +65,24 @@ export const getChargingReport = async (req, res: IResponse<ChargingReportDatum[
         const userChargingRecords = await ChargingRecords.find({
             userId: userId,
         }).exec();
-
+        const a = 0.1
         const responseData: ChargingReportDatum[] = userChargingRecords.map(
             (record: IChargingRecord) => ({
-                chargingFee: record.chargingFee,
+                chargingFee: +record.chargingFee.toFixed(2),
                 chargingPileId: record.chargingPileId,
                 chargingTime:
-                    (new Date(record.endTime).getTime() -
+                    +((new Date(record.endTime).getTime() -
                         new Date(record.startTime).getTime()) /
-                    1000,
+                    1000).toFixed(2),
                 createTime: record.startTime,
                 endTime: record.endTime,
                 orderId: record.recordId,
-                serviceFee: record.serviceFee,
+                serviceFee: +record.serviceFee.toFixed(2),
                 startTime: record.startTime,
                 time: record.startTime.toISOString(),
-                totalFee: record.totalFee,
+                totalFee: +record.totalFee.toFixed(2),
                 userId: record.userId,
-                volume: record.volume,
+                volume: +record.volume.toFixed(2),
             })
         );
 
