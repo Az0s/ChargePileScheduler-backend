@@ -259,16 +259,26 @@ export default async function dispatch() {
 
 const printTime = async () => {
     console.log(getDate());
-}
+};
 /**
  * Prints the current pile to the console.
  * For debugging purposes only.
  */
 const printPile = async () => {
-    const pile = await ChargingPileModel.find()
+    const pile: any = await ChargingPileModel.find()
         .sort({ chargingPileId: 1 })
         .lean()
         .exec();
+    for (const p of pile) {
+        p.queue = await Promise.all(
+            p.queue.map(async (q) => {
+                const { requestVolume } = await ChargingRequestModel.findOne({
+                    requestId: q.requestId,
+                });
+                return requestVolume;
+            })
+        );
+    }
     console.log("Current pile:");
     console.table(pile);
 };
