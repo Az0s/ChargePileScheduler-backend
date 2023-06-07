@@ -17,6 +17,7 @@ import { IResponse } from "../IResponse.js";
 import ChargingPile from "../models/ChargingPile.js";
 import { handleChargingPileError } from "../utils/handleChargingPileError.js";
 import { getDate, getTimestamp } from "../utils/timeService.js";
+import dispatch from "../utils/dispatch.js";
 
 export interface ChargingStationStatusDatum {
     /**
@@ -112,6 +113,7 @@ export const updateChargingPile = async (
         if (status !== ChargingPileStatus.running) {
             await handleChargingPileError(chargingPileId);
         }
+        await dispatch();
         res.status(200).json({ code: 0, message: "success" });
         return;
     } catch (error) {
