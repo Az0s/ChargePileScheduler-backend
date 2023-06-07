@@ -98,7 +98,7 @@ export const sortChargingQueue = async (): Promise<IncrementalQueue> => {
         { $sort: { requestType: 1, queueNumber: 1 } },
         {
             $group: {
-                _id: "requestType",
+                _id: "$requestType",
                 docs: { $push: "$$ROOT" },
             },
         },
@@ -249,11 +249,16 @@ export default async function dispatch() {
         await Promise.all([sortChargingQueue(), activateReadyCharger()]);
         printQueue();
         printPile();
+
         return;
     } catch (error) {
         console.error(error);
         throw new Error("dispatch error");
     }
+}
+
+const printTime = async () => {
+    console.log(getDate());
 }
 /**
  * Prints the current pile to the console.

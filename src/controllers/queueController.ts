@@ -122,7 +122,8 @@ export const getQueueInfo = async (req, res: IResponse<QueueInfo>) => {
         } else if (request[0].status == ChargingRequestStatus.charging) {
             // find one pile that has {requestId: request[0].requestId} in chargingPile.queue`
             const pile = await ChargingPiles.findOne({
-                chargingType: request[0].requestMode,
+                // will cause error when batch dispatch 
+                // chargingType: request[0].requestMode,
                 "queue.requestId": request[0].requestId,
             }).exec();
             res.json({

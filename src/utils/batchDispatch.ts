@@ -17,7 +17,7 @@
 时间)最短
 */
 
-import ChargingPileModel, { IChargingPile } from "../models/ChargingPile.js";
+import ChargingPileModel, { ChargingPileStatus, IChargingPile } from "../models/ChargingPile.js";
 import ChargingQueueModel, { IChargingQueue } from "../models/ChargingQueue.js";
 import ChargingRequestModel, {
     ChargingRequestStatus,
@@ -58,15 +58,19 @@ export async function dispatchBatch(): Promise<void> {
         const userInQueue: IncrementalQueue = await sortChargingQueue();
         const totalQueue = [...userInQueue.TQueue, ...userInQueue.FQueue];
         const totalLength = totalQueue.length;
-        // accumulate all the `maxQueue` in ChargingPileModel
+        // accumulate all the `maxQueue` in ChargingPileModel that is in state "available"
         const aggr = await ChargingPileModel.aggregate([
+            {
+                $match:{
+                    status: ChargingPileStatus.running
+                }
+            },
             {
                 $group: {
                     _id: null,
                     maxQueue: { $sum: "$maxQueue" },
                 },
             },
-            // ])[0].maxQueue;
         ]);
         const batchSize = aggr[0].maxQueue;
 

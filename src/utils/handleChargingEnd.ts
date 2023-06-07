@@ -16,7 +16,7 @@ import ChargingPileStats from "../models/ChargingPileStats.js";
  * @param volume 充电量
  * @returns 总充电费用
  */
-function calculateChargingFee(
+export function calculateChargingFee(
     startTime: Date,
     endTime: Date,
     volume: number
@@ -24,6 +24,8 @@ function calculateChargingFee(
     let chargingFee = 0;
     let currentTime = new Date(startTime);
     let remainingVolume = volume;
+    const unitVolume =
+        volume*1000 / (endTime.getDate() - startTime.getDate())
     // 电价随时间变化
     function getUnitPrice(time: Date): number {
         const hour = time.getHours();
@@ -53,7 +55,7 @@ function calculateChargingFee(
             (nextHour.getTime() - currentTime.getTime()) / 1000;
         const unitPrice = getUnitPrice(currentTime);
         const volumeForCurrentHour = Math.min(
-            timeToNextHour * unitPrice,
+            timeToNextHour * unitVolume,
             remainingVolume
         );
 
@@ -124,8 +126,12 @@ export default async function handleChargingEnd(
         })
         .exec();
     if (!request) {
-        console.error("active charging request not found");
-        throw new Error("active charging request not found");
+        // console.error(
+        //     `a request in charging state not found for user ${userId}`
+        // );
+        throw new Error(
+            `a request in charging state not found for user ${userId}`
+        );
     }
     const pile = await chargingPiles
         .findOne({

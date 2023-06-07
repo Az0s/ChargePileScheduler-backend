@@ -304,10 +304,10 @@ export const getReport = async (req, res: IResponse<ReportDatum[]>) => {
                       ) /
                           (1000 * 3600 * 24)
             );
-            console.log({
-                dayDiff,
-                earlyRecord: earliestRecord,
-            });
+            // console.log({
+            //     dayDiff,
+            //     earlyRecord: earliestRecord,
+            // });
             const weekDiff = Math.floor(dayDiff / 7);
             const monthDiff = Math.floor(dayDiff / 30);
 

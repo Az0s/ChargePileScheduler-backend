@@ -11,10 +11,15 @@
 
 // Select the database to use.
 use('chargepile');
+db.getCollection('chargingqueues').deleteMany({})
 // delete all documents in db.chargingQueue
-db.getCollection('chargingqueues').deleteMany({});
-// delete all 
-db.getCollection('chargingpiles').deleteMany({})
+// clear all documents in db.chargingPile.queue[]
+db.getCollection('chargingpiles').updateMany({
+    queue: { $exists: true },
+}, {
+    $set: { queue: [] },
+});
+db.getCollection('chargingrequests').deleteMany({})
 
 // // Insert a few documents into the sales collection.
 // db.getCollection('sales').insertMany([

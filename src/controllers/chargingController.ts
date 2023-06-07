@@ -10,6 +10,7 @@ import { getDate, getTimestamp } from "../utils/timeService.js";
 import { v4 as uuidv4 } from "uuid";
 import handleChargingEnd, {
     ChargingResponseData,
+    calculateChargingFee,
 } from "../utils/handleChargingEnd.js";
 
 export const requestCharging = async (
@@ -49,14 +50,17 @@ export const requestCharging = async (
             // console.error("USER_ALREADY_HAS_ACTIVE_REQUEST", userRequests);
             throw new Error("USER_ALREADY_HAS_ACTIVE_REQUEST");
         }
-        queueNumber =
-            (await chargingQueue.countDocuments({
+        queueNumber = await chargingQueue
+            .countDocuments({
                 requestType: chargingMode,
-            })) + 1;
+            })
+            .exec();
+        console.log({ queueNumber });
+        queueNumber = queueNumber+1
         const requestId = uuidv4();
         const pQueue = chargingQueue.create({
             userId,
-            queueNumber,
+            queueNumber: queueNumber,
             requestType: chargingMode,
             requestTime: getDate(),
             requestId,
@@ -118,7 +122,7 @@ export const requestCharging = async (
         */
     } catch (error) {
         // console.error(error);
-        res.status(400).json({
+        res.status(200).json({
             code: -1,
             message: "排队失败: " + error.message,
         });
@@ -135,6 +139,7 @@ export const submitChargingResult = async (
     const { userId } = req;
     try {
         const responseData = await handleChargingEnd(userId);
+        await dispatch();
         res.json({
             code: 0,
             message: "success",
@@ -198,14 +203,18 @@ export const cancelCharging = async (req, res: IResponse<null>) => {
                 );
                 res.json({ code: 0, message: "取消成功" });
             } else {
-                console.log({
-                    userId: req.userId,
-                    status: ChargingRequestStatus.pending,
-                });
-                res.status(400).json({
+                // console.error(
+                //     "未找到正在排队区等候的请求，可能是已在充电",
+                //     {
+                //         userId: req.userId,
+                //         statusTryingToFind: ChargingRequestStatus.pending,
+                //     }
+                // );
+                res.status(200).json({
                     code: -1,
-                    message: "未找到正在排队区等候的请求，可能是已在充电区排队",
+                    message: "已在充电",
                 });
+                return;
             }
         } catch (err) {
             console.error(
@@ -218,13 +227,13 @@ export const cancelCharging = async (req, res: IResponse<null>) => {
             });
         }
     } else {
-        res.status(400).json({ code: -1, message: "用户不在排队中" });
+        res.status(200).json({ code: -1, message: "用户不在排队中" });
     }
 };
 
 export const getRemainAmount = async (
     req,
-    res: IResponse<{ amount: number }>
+    res: IResponse<{ amount: number; totalFee: number; chargedAmount: number }>
 ) => {
     const { userId } = req;
     try {
@@ -271,6 +280,10 @@ export const getRemainAmount = async (
             message: "success",
             data: {
                 amount: remainingAmount,
+                totalFee:
+                    calculateChargingFee(startTime, now, chargedAmount) +
+                    chargedAmount * 0.8,
+                chargedAmount,
             },
         });
     } catch (error) {
