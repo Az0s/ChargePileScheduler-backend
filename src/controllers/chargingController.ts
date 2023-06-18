@@ -146,11 +146,10 @@ export const submitChargingResult = async (
             data: responseData,
         });
     } catch (error) {
-        console.error(error);
         res.json({
             code: -1,
             message:
-                "error while submitting charging request. " + error.message,
+                "user don't have active charging request" + error.message,
         });
     }
 };

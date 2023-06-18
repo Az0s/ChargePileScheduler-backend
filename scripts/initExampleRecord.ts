@@ -21,88 +21,88 @@ dotenv.config();
     // 确保打开连接后，数据模型对应的集合已经创建
     await User.findOne({});
 
-    // // 插入样例数据
-    // await Promise.all([
-    //     ChargingPile.create({
-    //         chargingPileId: "A",
-    //         chargingPower: 30,
-    //         chargingType: "F",
-    //         status: ChargingPileStatus.running,
-    //         maxQueue: 2,
-    //     }),
-    //     ChargingPile.create({
-    //         chargingPileId: "B",
-    //         chargingPower: 30,
-    //         chargingType: "F",
-    //         status: ChargingPileStatus.running,
-    //         maxQueue: 2,
-    //     }),
-    //     ChargingPile.create({
-    //         chargingPileId: "C",
-    //         chargingPower: 7,
-    //         chargingType: "T",
-    //         status: ChargingPileStatus.running,
-    //         maxQueue: 2,
-    //     }),
-    //     ChargingPile.create({
-    //         chargingPileId: "D",
-    //         chargingPower: 7,
-    //         chargingType: "T",
-    //         status: ChargingPileStatus.running,
-    //         maxQueue: 2,
-    //     }),
-    //     ChargingPile.create({
-    //         chargingPileId: "E",
-    //         chargingPower: 7,
-    //         chargingType: "T",
-    //         status: ChargingPileStatus.running,
-    //         maxQueue: 2,
-    //     }),
-    // ]);
-
-    // 以下同理处理其他模型
-    await ChargingQueue.findOne({});
+    // 插入样例数据
     await Promise.all([
-        ChargingQueue.create({
-            userId: "80801",
-            queueNumber: "1",
-            requestId: "a14bc086-888f-49ed-9e15-a86165980951",
-            requestType: "F",
-            requestVolume: 100,
-            requestTime: new Date(),
+        ChargingPile.create({
+            chargingPileId: "A",
+            chargingPower: 30,
+            chargingType: "F",
+            status: ChargingPileStatus.running,
+            maxQueue: 2,
         }),
-        ChargingQueue.create({
-            userId: "80802",
-            requestId: "9ad2e227-001b-47e9-a783-c2d7740bc905",
-            queueNumber: "2",
-            requestType: "F",
-            requestVolume: 80,
-            requestTime: new Date(),
+        ChargingPile.create({
+            chargingPileId: "B",
+            chargingPower: 30,
+            chargingType: "F",
+            status: ChargingPileStatus.running,
+            maxQueue: 2,
         }),
-        ChargingQueue.create({
-            userId: "80803",
-            queueNumber: "3",
-            requestId: "1fb2e11b-2e1b-4178-9ef9-d7ab28d9c4de",
-            requestType: "F",
-            requestVolume: 90,
-            requestTime: new Date(),
+        ChargingPile.create({
+            chargingPileId: "C",
+            chargingPower: 7,
+            chargingType: "T",
+            status: ChargingPileStatus.running,
+            maxQueue: 2,
         }),
-        ChargingQueue.create({
-            userId: "80804",
-            queueNumber: "4",
-            requestId: "d7a8c9b6-5e4f-4d3c-9b2a-1f3d2e4c5b6a",
-            requestType: "F",
-            requestVolume: 70,
-            requestTime: new Date(),
+        ChargingPile.create({
+            chargingPileId: "D",
+            chargingPower: 7,
+            chargingType: "T",
+            status: ChargingPileStatus.running,
+            maxQueue: 2,
         }),
-        ChargingQueue.create({
-            userId: "80805",
-            queueNumber: "5",
-            requestId: "e8f9a7b5-c4d3-4e5f-8a9b-6d5c2e3f4a5b",
-            requestType: "F",
-            requestVolume: 60,
-            requestTime: new Date(),
+        ChargingPile.create({
+            chargingPileId: "E",
+            chargingPower: 7,
+            chargingType: "T",
+            status: ChargingPileStatus.running,
+            maxQueue: 2,
         }),
+    ]);
+
+    // // 以下同理处理其他模型
+    // await ChargingQueue.findOne({});
+    // await Promise.all([
+    //     ChargingQueue.create({
+    //         userId: "80801",
+    //         queueNumber: "1",
+    //         requestId: "a14bc086-888f-49ed-9e15-a86165980951",
+    //         requestType: "F",
+    //         requestVolume: 100,
+    //         requestTime: new Date(),
+    //     }),
+    //     ChargingQueue.create({
+    //         userId: "80802",
+    //         requestId: "9ad2e227-001b-47e9-a783-c2d7740bc905",
+    //         queueNumber: "2",
+    //         requestType: "F",
+    //         requestVolume: 80,
+    //         requestTime: new Date(),
+    //     }),
+    //     ChargingQueue.create({
+    //         userId: "80803",
+    //         queueNumber: "3",
+    //         requestId: "1fb2e11b-2e1b-4178-9ef9-d7ab28d9c4de",
+    //         requestType: "F",
+    //         requestVolume: 90,
+    //         requestTime: new Date(),
+    //     }),
+    //     ChargingQueue.create({
+    //         userId: "80804",
+    //         queueNumber: "4",
+    //         requestId: "d7a8c9b6-5e4f-4d3c-9b2a-1f3d2e4c5b6a",
+    //         requestType: "F",
+    //         requestVolume: 70,
+    //         requestTime: new Date(),
+    //     }),
+    //     ChargingQueue.create({
+    //         userId: "80805",
+    //         queueNumber: "5",
+    //         requestId: "e8f9a7b5-c4d3-4e5f-8a9b-6d5c2e3f4a5b",
+    //         requestType: "F",
+    //         requestVolume: 60,
+    //         requestTime: new Date(),
+    //     }),
         // ChargingQueue.create({
         //     userId: "80806",
         //     queueNumber: "6",
@@ -143,7 +143,7 @@ dotenv.config();
         //     requestVolume: 10,
         //     requestTime: new Date(),
         // }),
-    ]);
+    // ]);
 
     // await ChargingRecord.findOne({});
     // await ChargingRecord.create({

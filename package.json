@@ -12,6 +12,7 @@
         "@types/node": "^18.15.11",
         "@types/socket.io": "^3.0.2",
         "concurrently": "^8.0.1",
+        "csv-writer": "^1.6.0",
         "jest": "^29.0.3",
         "mongodb-memory-server": "^8.9.2",
         "nodemon": "^2.0.22",
@@ -34,7 +35,8 @@
         "test": "jest --watchAll --verbose false",
         "deprecated:test:leak": "jest --watchAll --verbose --detectOpenHandles",
         "deprecated:test:cov": "npm test -- --coverage --watchAll=false",
-        "deprecated:deploy": "npx tsc && cp ./configuration/web.config ./dist "
+        "deprecated:deploy": "npx tsc && cp ./configuration/web.config ./dist ",
+        "export": "ts-node ./scripts/exportRecord.ts"
     },
     "dependencies": {
         "axios": "^1.3.4",

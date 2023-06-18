@@ -319,7 +319,9 @@ export const getReport = async (req, res: IResponse<ReportDatum[]>) => {
                 cumulativeChargingTime:
                     (stats?.totalChargingDuration ?? 0) / 3600, // Convert seconds to hours
                 cumulativeUsageTimes: stats?.totalChargingSessions ?? 0,
-                cumulativeFee: stats?.totalChargingFee ?? 0,
+                cumulativeFee:
+                    (stats?.totalChargingFee ?? 0) +
+                    (stats?.totalServiceFee ?? 0),
                 cumulativeChargingFee: stats?.totalChargingFee ?? 0,
                 cumulativeServiceFee: stats?.totalServiceFee ?? 0,
                 day: dayDiff - weekDiff * 7 - monthDiff * 30,
